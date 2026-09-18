@@ -3,9 +3,9 @@ A modular framework for classifying images as real, diffusion-generated, or diff
 
 ## Development status
 
-Steps 1–3 define the common adapter interface, a registry that constructs
-adapters by name, and a runner that executes them on an image. The repository
-does not yet include a pretrained detector or final image classification.
+Steps 1-4 define the common adapter interface, a registry that constructs
+adapters by name, a runner that executes them on an image, and a three-class
+decision rule. The repository does not yet include a pretrained detector.
 
 An adapter inherits from `BaseDetector`, declares a name and whether it looks
 for fully synthetic or edited images, and implements `predict(image)`. The input
@@ -72,6 +72,27 @@ for run in runs:
 When `selected` is omitted, all loaded detectors run in their construction
 order. A detector failure is recorded and does not prevent the others from
 running. An unreadable input image raises an error before execution.
+
+The `classify` function combines the individual runs into `real`, `synthetic`,
+or `edited` when both targets were evaluated successfully:
+
+```python
+from diffdetect import classify
+
+decision = classify(runs)
+print(decision.label, decision.reason)
+```
+
+With only the synthetic detector from the example above, this decision is
+inconclusive because the edited target has not been checked.
+
+Within each target, any positive detector supplies evidence for that target.
+Evidence for both `synthetic` and `edited` is a conflict. A detector error or
+missing target also prevents a three-class decision. In those cases,
+`decision.label` is `None` and `decision.reason` explains why; `None` is an
+inconclusive status, not a fourth class. A `real` label means that the included
+detectors found no evidence for either target, not that authenticity was proven.
+The decision rule does not compare raw scores from different detectors.
 
 Install the package locally with `python -m pip install -e .`. Run the contract
 tests with `PYTHONPATH=src python -m unittest discover -s tests -v`.

@@ -3,9 +3,9 @@ A modular framework for classifying images as real, diffusion-generated, or diff
 
 ## Development status
 
-Steps 1 and 2 define the common adapter interface and a registry that selects
-adapters by name. The repository does not yet include a pretrained detector or
-image classification pipeline.
+Steps 1–3 define the common adapter interface, a registry that constructs
+adapters by name, and a runner that executes them on an image. The repository
+does not yet include a pretrained detector or final image classification.
 
 An adapter inherits from `BaseDetector`, declares a name and whether it looks
 for fully synthetic or edited images, and implements `predict(image)`. The input
@@ -56,5 +56,22 @@ detector = registry.create("my_synthetic_detector", model=my_model)
 `my_model` in this example stands for a model supplied by the user. Separate
 registry instances maintain separate lists of adapters.
 
+Use `DetectorRunner` to execute one or more constructed detectors. It accepts a
+file path or a Pillow image, converts it to RGB, and gives each detector its own
+copy. Every run records the detector name, target, result or error, and duration:
+
+```python
+from diffdetect import DetectorRunner
+
+runner = DetectorRunner([detector])
+runs = runner.run("image.png", selected=["my_synthetic_detector"])
+for run in runs:
+    print(run.name, run.target, run.status, run.result, run.error)
+```
+
+When `selected` is omitted, all loaded detectors run in their construction
+order. A detector failure is recorded and does not prevent the others from
+running. An unreadable input image raises an error before execution.
+
 Install the package locally with `python -m pip install -e .`. Run the contract
-and registry tests with `PYTHONPATH=src python -m unittest discover -s tests -v`.
+tests with `PYTHONPATH=src python -m unittest discover -s tests -v`.

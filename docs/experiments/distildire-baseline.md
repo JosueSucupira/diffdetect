@@ -42,6 +42,23 @@ The 100 real validation images were separate from the real calibration images.
 The DiffusionDB images were also independent from the ADM images used for
 calibration.
 
+## Framework integration check
+
+The adapter from commit `2c8f254` was executed in the same Colab environment
+against two DiffusionDB images that had already been evaluated by the manual
+pipeline.
+
+| Run | Score | Synthetic decision | Duration |
+| --- | ---: | --- | ---: |
+| First, including model loading | 0.994035 | yes | 14.66 s |
+| Second, reusing loaded models | 0.996187 | yes | 0.6651 s |
+
+The earlier manually reported scores were 0.9940 and 0.9962 after rounding.
+The adapter therefore reproduced the manual pipeline and kept its loaded models
+between predictions. GPU allocation remained at 4.32 GB during the second run
+because the notebook still held the manually loaded models alongside the
+adapter's copies. This value does not represent a clean adapter-only session.
+
 ## Limits
 
 - The samples are too small to establish a universal operating threshold.

@@ -1,5 +1,6 @@
 """Public API for DiffDetect detector adapters."""
 
+from .adapters import DistilDIREDetector
 from .classification import ClassificationResult, DecisionReason, ImageClass, classify
 from .detector import BaseDetector, DetectionResult, DetectionTarget
 from .registry import DetectorRegistry
@@ -11,6 +12,7 @@ __all__ = [
     "DecisionReason",
     "DetectionResult",
     "DetectionTarget",
+    "DistilDIREDetector",
     "DetectorRegistry",
     "DetectorRun",
     "DetectorRunner",

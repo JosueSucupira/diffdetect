@@ -5,7 +5,8 @@ A modular framework for classifying images as real, diffusion-generated, or diff
 
 Steps 1-4 define the common adapter interface, a registry that constructs
 adapters by name, a runner that executes them on an image, and a three-class
-decision rule. The repository does not yet include a pretrained detector.
+decision rule. Step 5 adds an adapter for the external DistilDIRE ImageNet
+detector.
 
 An adapter inherits from `BaseDetector`, declares a name and whether it looks
 for fully synthetic or edited images, and implements `predict(image)`. The input
@@ -93,6 +94,45 @@ missing target also prevents a three-class decision. In those cases,
 inconclusive status, not a fourth class. A `real` label means that the included
 detectors found no evidence for either target, not that authenticity was proven.
 The decision rule does not compare raw scores from different detectors.
+
+## DistilDIRE adapter
+
+`DistilDIREDetector` wraps the official ImageNet DistilDIRE implementation as
+synthetic-image evidence. DiffDetect does not redistribute its source code or
+model weights. Clone the
+[official repository](https://github.com/miraflow/DistilDIRE), download its
+ImageNet classifier and ADM checkpoints, and follow the external project's
+CC BY-NC 4.0 license.
+
+The validated Colab environment used Python 3.11, PyTorch 2.3.1 with CUDA 12.1,
+and torchvision 0.18.1. `blobfile` and `mpi4py` are also required by the
+external implementation. The adapter imports these dependencies only when its
+first prediction loads the models, so the rest of DiffDetect remains usable
+without PyTorch.
+
+```python
+from diffdetect import DetectorRunner, DistilDIREDetector
+
+detector = DistilDIREDetector(
+    repository_path="/content/DistilDIRE",
+    classifier_weights=(
+        "/content/DistilDIRE/models/imagenet-distil-dire-11e.pth"
+    ),
+    adm_weights="/content/DistilDIRE/models/256x256-adm.pt",
+    threshold=0.9877818822860718,
+    device="cuda",
+)
+
+runner = DetectorRunner([detector])
+run = runner.run("image.jpg")[0]
+print(run.result.score, run.result.detected)
+```
+
+The threshold in this example came from a small preliminary calibration and is
+not a universal default. The adapter therefore requires the threshold to be
+provided explicitly. The complete protocol, metrics, hashes, and limitations
+are recorded in
+[`docs/experiments/distildire-baseline.md`](docs/experiments/distildire-baseline.md).
 
 Install the package locally with `python -m pip install -e .`. Run the contract
 tests with `PYTHONPATH=src python -m unittest discover -s tests -v`.

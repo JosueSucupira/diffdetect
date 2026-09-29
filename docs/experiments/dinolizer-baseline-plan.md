@@ -1,5 +1,10 @@
 # DinoLizer baseline plan
 
+The technical smoke test and the initial paired behavior check have been
+completed. Their results are recorded in
+[`dinolizer-baseline.md`](dinolizer-baseline.md). Preliminary calibration and
+separate validation remain pending.
+
 This experiment will determine whether DinoLizer can supply edited-image
 evidence to DiffDetect. It must be completed before an adapter is implemented.
 

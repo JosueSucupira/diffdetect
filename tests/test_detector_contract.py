@@ -34,6 +34,27 @@ class DetectorContractTests(unittest.TestCase):
         self.assertEqual(result.score, -0.4)
         self.assertEqual(result.threshold, -0.5)
         self.assertEqual(result.localization_map.size, (8, 8))
+        self.assertEqual(result.metadata, {})
+
+    def test_result_copies_detector_specific_metadata(self):
+        metadata = {
+            "marked_area": 0.25,
+            "processed_size": (1016, 1016),
+            "window_count": 25,
+        }
+
+        result = DetectionResult(detected=True, metadata=metadata)
+        metadata["window_count"] = 1
+
+        self.assertEqual(result.metadata["marked_area"], 0.25)
+        self.assertEqual(result.metadata["processed_size"], (1016, 1016))
+        self.assertEqual(result.metadata["window_count"], 25)
+
+    def test_result_rejects_invalid_metadata(self):
+        with self.assertRaisesRegex(TypeError, "metadata must be a mapping"):
+            DetectionResult(detected=True, metadata=[("window_count", 25)])
+        with self.assertRaisesRegex(TypeError, "metadata keys must be strings"):
+            DetectionResult(detected=True, metadata={1: "invalid"})
 
     def test_invalid_decisions_cannot_cross_the_adapter_boundary(self):
         with self.assertRaises(TypeError):

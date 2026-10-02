@@ -1,0 +1,34 @@
+{
+  "frozen_score": "p99_probability",
+  "frozen_threshold": 0.5946570634841919,
+  "images": 512,
+  "confusion_matrix": {
+    "true_positive": 240,
+    "false_positive": 12,
+    "true_negative": 244,
+    "false_negative": 16
+  },
+  "image_metrics": {
+    "sensitivity": 0.9375,
+    "specificity": 0.953125,
+    "precision": 0.9523809523809523,
+    "accuracy": 0.9453125,
+    "balanced_accuracy": 0.9453125,
+    "roc_auc": 0.98345947265625
+  },
+  "localization_manipulated": {
+    "macro_iou": 0.7502109195185251,
+    "median_iou": 0.8506333673282218,
+    "micro_iou": 0.7997871566059608,
+    "macro_f1": 0.824722742555184,
+    "median_f1": 0.9192889115976299,
+    "micro_f1": 0.8887574885401446,
+    "empty_predictions": 6
+  },
+  "runtime": {
+    "wall_minutes_this_execution": 8.577504580583332,
+    "mean_inference_seconds": 0.921637956083984
+  },
+  "errors_this_execution": 0,
+  "missing_results": 0
+}

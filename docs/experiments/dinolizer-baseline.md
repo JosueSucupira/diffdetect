@@ -1,9 +1,9 @@
 # DinoLizer baseline
 
 This experiment checks whether DinoLizer can provide localization evidence for
-the edited-image class in DiffDetect. The technical smoke test, an initial
-paired behavior check, and image-level calibration have been completed. The
-calibrated decision rule is frozen; separate validation remains pending.
+the edited-image class in DiffDetect. The technical smoke test, initial paired
+behavior check, image-level calibration, and held-out validation have been
+completed. The results support implementing an experimental adapter.
 
 ## Reproducible setup
 
@@ -107,8 +107,8 @@ accuracy:
 
 These limitations motivated the separate CocoGlide protocol described below.
 Calibration images and validation images, including derivatives of the same
-source photograph, remain in different splits. Adapter implementation remains
-pending until the frozen decision rule is checked on the validation split.
+source photograph, remain in different splits. The frozen decision rule was
+then checked on the validation split without adjustment.
 
 ## CocoGlide calibration protocol
 
@@ -193,11 +193,72 @@ model inference time was 0.918 seconds per image, the median was 0.894 seconds,
 and the 95th percentile was 1.013 seconds. The raw derived results are stored
 in [`results/dinolizer-cocoglide-calibration.csv`](results/dinolizer-cocoglide-calibration.csv).
 
-## Remaining validation
+## Held-out validation
 
-The frozen 99th-percentile score and threshold must now be applied unchanged
-to the 256 authentic and 256 manipulated images in the held-out validation
-split. Validation must report the image-level confusion matrix, sensitivity,
-specificity, precision, accuracy, balanced accuracy, and ROC-AUC, as well as
-pixel-level IoU and F1 for the manipulated images. No validation result may be
-used to revise the score or threshold.
+The frozen score and threshold were applied unchanged to the remaining 256
+authentic and 256 manipulated images. All 512 images completed without errors.
+
+| Image-level metric | Calibration | Validation | Change |
+| --- | ---: | ---: | ---: |
+| Sensitivity | 0.9453 | 0.9375 | -0.0078 |
+| Specificity | 0.9570 | 0.9531 | -0.0039 |
+| Precision | 0.9565 | 0.9524 | -0.0041 |
+| Accuracy | 0.9512 | 0.9453 | -0.0059 |
+| Balanced accuracy | 0.9512 | 0.9453 | -0.0059 |
+| ROC-AUC | 0.9891 | 0.9835 | -0.0056 |
+
+The validation confusion matrix contained 240 true positives, 244 true
+negatives, 12 false positives, and 16 false negatives.
+
+Pair-level bootstrapping with 2,000 resamples and seed `20261002` produced the
+following 95% percentile intervals on validation:
+
+| Metric | Validation | 95% interval |
+| --- | ---: | ---: |
+| Sensitivity | 0.9375 | 0.9063-0.9648 |
+| Specificity | 0.9531 | 0.9258-0.9766 |
+| Precision | 0.9524 | 0.9264-0.9758 |
+| Balanced accuracy | 0.9453 | 0.9258-0.9629 |
+| ROC-AUC | 0.9835 | 0.9745-0.9912 |
+
+Localization performance on the 256 manipulated validation images was also
+stable:
+
+| Metric | Calibration | Validation | Validation 95% interval |
+| --- | ---: | ---: | ---: |
+| Macro IoU | 0.7441 | 0.7502 | 0.7196-0.7795 |
+| Median IoU | 0.8384 | 0.8506 | not bootstrapped |
+| Micro IoU | 0.7851 | 0.7998 | 0.7704-0.8257 |
+| Macro F1 | 0.8246 | 0.8247 | 0.7954-0.8522 |
+| Median F1 | 0.9121 | 0.9193 | not bootstrapped |
+| Micro F1 | 0.8796 | 0.8888 | 0.8703-0.9045 |
+
+Six manipulated validation images produced empty masks. Fourteen of the 16
+image-level false negatives had ground-truth edited areas below 10%, consistent
+with the model's known difficulty on small manipulations.
+
+The validation run took 8.58 minutes, with a mean model inference time of
+0.922 seconds per image. Its derived artifacts are:
+
+- [`results/dinolizer-cocoglide-validation.csv`](results/dinolizer-cocoglide-validation.csv),
+  SHA-256
+  `32a7c0a6ccbddc0919031f1089a240c1b555a4d80e312ba72633119d56ffb8f5`;
+- [`results/dinolizer-cocoglide-validation-summary.json`](results/dinolizer-cocoglide-validation-summary.json),
+  SHA-256
+  `d95732ebffd5c184002cb346cd777f7efc75d308f036c342145d72d05ed86c6d`.
+
+## Adapter decision and limits
+
+The experiment now supplies the information required by the baseline plan: a
+pinned upstream commit, verified checkpoint, exact preprocessing and
+localization behavior, a defined image-level score, a frozen threshold, and
+performance on source-separated validation data. A DinoLizer adapter may be
+implemented for `DetectionTarget.EDITED` and should return the original-size
+probability map through `DetectionResult.localization_map`.
+
+The adapter must keep the 99th-percentile score and threshold configurable.
+The selected operating point is supported by this CocoGlide evaluation, not a
+universal guarantee. CocoGlide contains 256-pixel GLIDE edits, and both splits
+come from the same dataset. Further evaluation on other editing models,
+resolutions, compression levels, and small manipulated regions remains needed
+before treating the threshold as production-ready.

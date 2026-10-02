@@ -1,9 +1,9 @@
 # DinoLizer baseline
 
 This experiment checks whether DinoLizer can provide localization evidence for
-the edited-image class in DiffDetect. The technical smoke test and an initial
-paired behavior check have been completed. Image-level calibration and
-independent validation remain pending.
+the edited-image class in DiffDetect. The technical smoke test, an initial
+paired behavior check, and image-level calibration have been completed. The
+calibrated decision rule is frozen; separate validation remains pending.
 
 ## Reproducible setup
 
@@ -105,8 +105,99 @@ accuracy:
 - no ground-truth manipulation masks were available for pixel-level IoU or F1;
 - the score has not been calibrated and evaluated on separate splits.
 
-The next experiment must use traceable data that are separate from these
-examples. Calibration images and validation images, including derivatives of
-the same source photograph, must remain in different splits. Only after that
-test can DiffDetect define an image-level score, freeze a threshold, and
-implement a DinoLizer adapter targeting `DetectionTarget.EDITED`.
+These limitations motivated the separate CocoGlide protocol described below.
+Calibration images and validation images, including derivatives of the same
+source photograph, remain in different splits. Adapter implementation remains
+pending until the frozen decision rule is checked on the validation split.
+
+## CocoGlide calibration protocol
+
+Calibration uses the reformatted `nebula/CocoGlide` dataset at revision
+`275f045df7caa2544dd28de7fa86b044ab661bd0`. It contains 512 source pairs. Each
+pair has one authentic COCO image and one GLIDE-inpainted image with a
+localization mask.
+
+The source IDs were sorted by the SHA-256 digest of
+`diffdetect-cocoglide-v1:{coco_id}`. The first 256 pairs were assigned to
+calibration and the remaining 256 to validation. This procedure keeps both
+members of a source pair in the same split and produces no source overlap.
+
+- Split manifest SHA-256:
+  `8311d0e96ccb83bfbfdb2ee981d604515c921701c6b4e7210c0646fc6217e21c`
+- Prepared sample metadata SHA-256:
+  `5bb40eb0cd8b8ad73256bde8d82d5f95513749414da5e9c67a59e23aac76454f`
+- Calibration result SHA-256:
+  `6ec4fa85098466cdafcb592afdd1be59c9c474ac09679f9da557522986e86244`
+
+The calibration run used a later Colab image than the smoke test:
+
+- Python 3.13.15
+- PyTorch 2.11.0+cu130
+- torchvision 0.26.0+cu130
+- CUDA 13.0
+- NumPy 2.1.3
+- timm 1.0.29
+- Tesla T4
+
+The inference implementation reproduced the previously recorded official mask
+area of 9.1759% as 9.1797%, a difference of 0.0038 percentage point. For
+256-pixel CocoGlide inputs, it follows the official resize to 1016 pixels and
+uses 25 overlapping 504-pixel windows with a stride of 128. Probability maps
+and binary masks are returned to the original dimensions for localization
+metrics.
+
+## Image-level score selection
+
+Six candidate summaries were compared on the 512 calibration images. For each
+candidate, the table reports its ROC-AUC and the result at the threshold that
+maximized Youden's J statistic on calibration.
+
+| Candidate score | ROC-AUC | Threshold | Sensitivity | Specificity | Balanced accuracy |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Marked area, processed size | 0.9845 | 0.003767 | 0.9727 | 0.9258 | 0.9492 |
+| Marked area, original size | 0.9846 | 0.003754 | 0.9727 | 0.9258 | 0.9492 |
+| Mean inpainted probability | 0.9727 | 0.031757 | 0.9219 | 0.9336 | 0.9277 |
+| 95th probability percentile | 0.9637 | 0.264661 | 0.8398 | 0.9648 | 0.9023 |
+| 99th probability percentile | **0.9891** | **0.5946570634841919** | 0.9453 | 0.9570 | 0.9512 |
+| Maximum probability | 0.9889 | 0.753046 | 0.9609 | 0.9492 | 0.9551 |
+
+The 99th percentile was selected because it had the highest calibration
+ROC-AUC and is less sensitive to a single extreme pixel than the maximum. The
+image-level edited score is therefore the 99th percentile of the DinoLizer
+class-2 probability map. An image supplies edited evidence when that score is
+greater than or equal to `0.5946570634841919`.
+
+This score is a detector-specific summary, not the probability that an entire
+image is edited. The score definition and threshold are frozen before the
+validation split is evaluated.
+
+At the frozen calibration operating point, the confusion matrix contained 242
+true positives, 245 true negatives, 11 false positives, and 14 false
+negatives. Precision was 0.9565 and accuracy was 0.9512.
+
+## Calibration localization and runtime
+
+Localization metrics were calculated on the 256 manipulated calibration
+images after returning predicted masks to their original 256-pixel size.
+
+| Metric | Macro mean | Median | Micro |
+| --- | ---: | ---: | ---: |
+| IoU | 0.7441 | 0.8384 | 0.7851 |
+| F1 | 0.8246 | 0.9121 | 0.8796 |
+
+Two manipulated images produced empty predicted masks. The correlation between
+ground-truth and predicted edited-area proportions was 0.9202.
+
+All 512 calibration images completed without errors in 8.54 minutes. Mean
+model inference time was 0.918 seconds per image, the median was 0.894 seconds,
+and the 95th percentile was 1.013 seconds. The raw derived results are stored
+in [`results/dinolizer-cocoglide-calibration.csv`](results/dinolizer-cocoglide-calibration.csv).
+
+## Remaining validation
+
+The frozen 99th-percentile score and threshold must now be applied unchanged
+to the 256 authentic and 256 manipulated images in the held-out validation
+split. Validation must report the image-level confusion matrix, sensitivity,
+specificity, precision, accuracy, balanced accuracy, and ROC-AUC, as well as
+pixel-level IoU and F1 for the manipulated images. No validation result may be
+used to revise the score or threshold.

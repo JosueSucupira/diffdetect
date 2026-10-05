@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from collections.abc import Mapping
+from dataclasses import dataclass, field
 from enum import Enum
 from math import isfinite
 from numbers import Real
@@ -25,12 +26,15 @@ class DetectionResult:
     ``score`` stays on the detector's own scale. It must not be compared with
     scores from other detectors without an explicit calibration step.
     ``localization_map`` may contain a mask or a heatmap of edited regions.
+    ``metadata`` retains detector-specific context without changing the common
+    decision contract.
     """
 
     detected: bool
     score: float | None = None
     threshold: float | None = None
     localization_map: Image.Image | None = None
+    metadata: Mapping[str, object] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if type(self.detected) is not bool:
@@ -51,6 +55,12 @@ class DetectionResult:
             self.localization_map, Image.Image
         ):
             raise TypeError("localization_map must be a PIL image or None")
+        if not isinstance(self.metadata, Mapping):
+            raise TypeError("metadata must be a mapping")
+        if any(not isinstance(key, str) for key in self.metadata):
+            raise TypeError("metadata keys must be strings")
+
+        object.__setattr__(self, "metadata", dict(self.metadata))
 
 
 class BaseDetector(ABC):

@@ -61,6 +61,10 @@ will remain outside the Git repository. A manifest with immutable identifiers,
 source revisions, labels, dimensions, and file SHA-256 values will be committed
 before model inference begins.
 
+After all three classes are selected, order the complete manifest by SHA-256 of
+`diffdetect-three-class-v1:order:{sample_id}`. This deterministic interleaving
+prevents class blocks from being coupled to warm-up or runtime-order effects.
+
 ### Real class
 
 Use all 256 authentic COCO images from the frozen

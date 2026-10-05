@@ -90,7 +90,7 @@ Point `COCOGLIDE_ROOT` to the directory that directly contains files such as
 CocoGlide `prepared-v1` validation data:
 
 ```bash
-export COCOGLIDE_ROOT=/content/drive/MyDrive/DiffDetect/datasets/CocoGlide/prepared-v1/images
+export COCOGLIDE_ROOT=/content/drive/MyDrive/DiffDetect/datasets/CocoGlide/prepared-v1/validation/images
 
 cd /content/diffdetect
 python experiments/three_class_validation.py prepare-manifest \
@@ -106,7 +106,7 @@ Expected output:
 ```text
 wrote 768 records to docs/experiments/results/three-class-validation-manifest.csv
 class counts: {'edited': 256, 'real': 256, 'synthetic': 256}
-manifest SHA-256: <record this value>
+manifest SHA-256: 9dcda4b93d8c73df7b1240629bec209566cd6119bb7f800c2906b8c3826b8777
 ```
 
 At this point, stop before inference. Copy or commit the generated manifest on

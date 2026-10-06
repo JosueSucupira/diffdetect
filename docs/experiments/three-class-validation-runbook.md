@@ -61,6 +61,29 @@ export DISTILDIRE_ADM=/content/drive/MyDrive/DiffDetect/models/distildire/256x25
 export DINOLIZER_CHECKPOINT=/content/drive/MyDrive/DiffDetect/models/dinolizer/epoch=36_val_loss=0.2130.ckpt
 ```
 
+Download the two DistilDIRE artifacts from their pinned official sources when
+they are not already preserved in Drive, then verify the frozen digests before
+continuing:
+
+```bash
+mkdir -p "$(dirname "$DISTILDIRE_CLASSIFIER")"
+
+if [ ! -f "$DISTILDIRE_CLASSIFIER" ]; then
+  wget -O "$DISTILDIRE_CLASSIFIER.part" \
+    "https://huggingface.co/yevvonlim/distildire/resolve/1318c17f77ec70153365a3cd62d885a87c498e7d/imagenet-distil-dire-11e.pth?download=true"
+  mv "$DISTILDIRE_CLASSIFIER.part" "$DISTILDIRE_CLASSIFIER"
+fi
+
+if [ ! -f "$DISTILDIRE_ADM" ]; then
+  wget -O "$DISTILDIRE_ADM.part" \
+    "https://openaipublic.blob.core.windows.net/diffusion/jul-2021/256x256_diffusion_uncond.pt"
+  mv "$DISTILDIRE_ADM.part" "$DISTILDIRE_ADM"
+fi
+
+echo "e6b76a13ae49eb83d39fb9b1f7de86bf9f63d1dddf0225ca7ad03690e6bc53bc  $DISTILDIRE_CLASSIFIER" | sha256sum -c -
+echo "fd9dd2335b8736d521de0aed54bd90ca  $DISTILDIRE_ADM" | md5sum -c -
+```
+
 If the DistilDIRE files use different directories in Drive, change only these
 path variables. Do not rename or replace the files without verifying that they
 have the frozen digests in the experiment plan.

@@ -9,6 +9,13 @@ decision rule. Step 5 adds an adapter for the external DistilDIRE ImageNet
 detector. Step 6 adds an experimental adapter for the external DinoLizer
 localization model.
 
+The frozen three-class baseline has also been evaluated on 768 images. Both
+adapters completed without technical errors, but the conservative Boolean
+aggregation achieved 6.64% end-to-end accuracy with 40.62% coverage and a
+59.38% conflict rate. This negative result and the next hierarchical
+aggregation step are documented in
+[`docs/experiments/three-class-validation.md`](docs/experiments/three-class-validation.md).
+
 An adapter inherits from `BaseDetector`, declares a name and whether it looks
 for fully synthetic or edited images, and implements `predict(image)`. The input
 is an RGB [Pillow](https://pillow.readthedocs.io/) image. The result always

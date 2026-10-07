@@ -32,13 +32,23 @@ Use the PyTorch and torchvision versions already matched to the Colab CUDA
 runtime. Do not downgrade them before the smoke test. The experiment records
 their exact versions in the output metadata.
 
-Preserve the DINOv2 download cache in Drive:
+Use a clean local Hugging Face cache for the evaluated run. Keep the PyTorch
+cache in Drive so the DINOv2 backbone can be reused, but do not point
+`HF_HOME` at a partially synchronized Drive cache:
 
 ```bash
-export HF_HOME=/content/drive/MyDrive/DiffDetect/cache/huggingface
+export HF_HOME=/content/huggingface-clean
+export HF_HUB_CACHE=/content/huggingface-clean/hub
+export HF_HUB_DISABLE_XET=1
 export TORCH_HOME=/content/drive/MyDrive/DiffDetect/cache/torch
-mkdir -p "$HF_HOME" "$TORCH_HOME"
+mkdir -p "$HF_HUB_CACHE" "$TORCH_HOME"
 ```
+
+The first complete attempt used a corrupted Hugging Face cache in Drive and
+caused a safetensors `header too large` error in DinoLizer for every sample.
+Those results were discarded. The local-cache configuration above was used
+for the successful 768-image run. An unauthenticated Hub warning is harmless;
+set `HF_TOKEN` only when a higher download rate limit is needed.
 
 ## 2. Prepare pinned external repositories
 
@@ -173,3 +183,9 @@ only checks shared-environment compatibility and output integrity.
 If Colab interrupts a later complete run, repeat the same command with
 `--resume`. Existing sample identifiers are verified and skipped; errors and
 conflicts already written to the CSV are not silently retried.
+
+## 6. Recorded result
+
+The completed evaluation, derived metrics, figures, interpretation, and exact
+artifact hashes are recorded in
+[`three-class-validation.md`](three-class-validation.md).

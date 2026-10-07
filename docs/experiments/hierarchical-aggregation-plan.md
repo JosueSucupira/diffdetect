@@ -322,3 +322,6 @@ experimental component rather than a universal detector.
 8. apply the frozen policy to the existing 768-row comparison;
 9. report primary, ablation, and paired-bootstrap results;
 10. design the independent confirmation protocol.
+
+The commands for the first manifest-freezing phase are documented in
+[`hierarchical-aggregation-runbook.md`](hierarchical-aggregation-runbook.md).

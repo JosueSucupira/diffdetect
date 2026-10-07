@@ -136,7 +136,8 @@ versioned baseline and implement a separate hierarchical aggregator. Its
 development may use these results only as exploratory evidence. Because this
 validation set has now been inspected, thresholds or aggregation parameters
 derived from it require a new, independent confirmation set before making a
-final performance claim.
+final performance claim. The prespecified follow-up is documented in
+[`hierarchical-aggregation-plan.md`](hierarchical-aggregation-plan.md).
 
 ## Limitations
 

@@ -15,6 +15,9 @@ aggregation achieved 6.64% end-to-end accuracy with 40.62% coverage and a
 59.38% conflict rate. This negative result and the next hierarchical
 aggregation step are documented in
 [`docs/experiments/three-class-validation.md`](docs/experiments/three-class-validation.md).
+The follow-up protocol is frozen in
+[`docs/experiments/hierarchical-aggregation-plan.md`](docs/experiments/hierarchical-aggregation-plan.md)
+before any aggregation parameters are fitted.
 
 An adapter inherits from `BaseDetector`, declares a name and whether it looks
 for fully synthetic or edited images, and implements `predict(image)`. The input

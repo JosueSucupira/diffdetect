@@ -102,7 +102,7 @@ Expected structure:
 ```text
 wrote 768 records to docs/experiments/results/hierarchical-calibration-manifest.csv
 class counts: {'edited': 256, 'real': 256, 'synthetic': 256}
-manifest SHA-256: <record this value>
+manifest SHA-256: 5a23bee4f802b9c88dd41030711aee173d27a3f8974371153439c0c363cde3a5
 ```
 
 Perform a separate summary check:
@@ -137,3 +137,8 @@ exactly one exclusion-manifest hash.
 
 Do not run model inference yet. Preserve the generated CSV and its SHA-256 for
 review and versioning.
+
+The frozen manifest above was independently checked for class balance,
+consecutive indexes, unique sample identifiers, unique image hashes,
+deterministic ordering, exact CocoGlide calibration membership, and zero
+sample, source, or content overlap with the previous validation manifest.

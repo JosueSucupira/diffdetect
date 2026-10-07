@@ -108,6 +108,13 @@ calibration domain.
 
 Calibration will contain 768 images, balanced with 256 per class.
 
+The frozen manifest is stored in
+[`results/hierarchical-calibration-manifest.csv`](results/hierarchical-calibration-manifest.csv)
+with SHA-256
+`5a23bee4f802b9c88dd41030711aee173d27a3f8974371153439c0c363cde3a5`.
+It contains 768 unique input hashes and has no sample, source, or input-hash
+overlap with the earlier three-class validation manifest.
+
 ### Real and edited classes
 
 Use the 256 real and 256 edited images from the existing CocoGlide

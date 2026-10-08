@@ -142,3 +142,79 @@ The frozen manifest above was independently checked for class balance,
 consecutive indexes, unique sample identifiers, unique image hashes,
 deterministic ordering, exact CocoGlide calibration membership, and zero
 sample, source, or content overlap with the previous validation manifest.
+
+## 5. Start a clean GPU runtime for inference
+
+After the manifest has been committed, start a clean T4 GPU runtime, mount
+Drive again, and clone or update the experiment branch. Install the optional
+runtime dependencies without replacing the Colab-provided PyTorch build:
+
+```bash
+python -m pip install -q \
+  albumentations blobfile einops mpi4py numpy pandas pyarrow \
+  PyYAML safetensors timm
+```
+
+Use a clean local Hugging Face cache. Reuse only the PyTorch cache in Drive:
+
+```bash
+export HF_HOME=/content/huggingface-hierarchical
+export HF_HUB_CACHE=/content/huggingface-hierarchical/hub
+export HF_HUB_DISABLE_XET=1
+export TORCH_HOME=/content/drive/MyDrive/DiffDetect/cache/torch
+mkdir -p "$HF_HUB_CACHE" "$TORCH_HOME"
+```
+
+Clone the exact external revisions:
+
+```bash
+git clone https://github.com/miraflow/DistilDIRE.git /content/DistilDIRE
+git -C /content/DistilDIRE checkout --detach \
+  5de48cf255411b3f47833822e0afec32b2d66e61
+
+git clone https://github.com/anonyme610/dinolizer.git /content/DinoLizer
+git -C /content/DinoLizer checkout --detach \
+  3241ce530a685e6e0560db4e0d8aaa9f28de6fc6
+```
+
+Point to the preserved model files:
+
+```bash
+export DISTILDIRE_CLASSIFIER=/content/drive/MyDrive/DiffDetect/models/distildire/imagenet-distil-dire-11e.pth
+export DISTILDIRE_ADM=/content/drive/MyDrive/DiffDetect/models/distildire/256x256-adm.pt
+export DINOLIZER_CHECKPOINT=/content/drive/MyDrive/DiffDetect/models/dinolizer/epoch=36_val_loss=0.2130.ckpt
+```
+
+The runner verifies repository revisions and every model digest before loading
+a model.
+
+## 6. Run the raw-evidence smoke test
+
+The smoke test verifies all 768 inputs, then runs the earliest manifest image
+from each class. It records raw evidence only; no hierarchical policy is fitted
+or applied at this stage.
+
+```bash
+export RESULTS_ROOT=/content/drive/MyDrive/DiffDetect/results/hierarchical-calibration-v1
+mkdir -p "$RESULTS_ROOT"
+
+cd /content/diffdetect
+python experiments/hierarchical_aggregation.py run \
+  --manifest docs/experiments/results/hierarchical-calibration-manifest.csv \
+  --cocoglide-root "$COCOGLIDE_CALIBRATION_ROOT" \
+  --diffusiondb-root "$HIERARCHICAL_DIFFUSIONDB_ROOT" \
+  --distildire-repository /content/DistilDIRE \
+  --distildire-classifier "$DISTILDIRE_CLASSIFIER" \
+  --distildire-adm "$DISTILDIRE_ADM" \
+  --dinolizer-repository /content/DinoLizer \
+  --dinolizer-checkpoint "$DINOLIZER_CHECKPOINT" \
+  --device cuda \
+  --environment-id colab-t4-hierarchical-calibration-v1-smoke \
+  --output "$RESULTS_ROOT/hierarchical-calibration-smoke.csv" \
+  --smoke
+```
+
+The command creates a three-row CSV and a metadata JSON. Both must report a
+complete run, the frozen manifest hash, verified model revisions and hashes,
+and `aggregation_policy_applied: false`. Stop and inspect these artifacts
+before starting the 768-image inference.

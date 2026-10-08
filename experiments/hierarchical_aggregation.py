@@ -11,15 +11,29 @@ from __future__ import annotations
 import argparse
 import csv
 import hashlib
+import importlib.metadata
+import json
 import math
+import os
+import platform
+import subprocess
+import sys
 from collections import Counter
 from dataclasses import asdict, dataclass
+from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
+from time import perf_counter
 from typing import Iterable, Mapping, Sequence
 
 from PIL import Image
 
-from diffdetect import ImageClass
+from diffdetect import (
+    DinoLizerDetector,
+    DistilDIREDetector,
+    DetectorRun,
+    DetectorRunner,
+    ImageClass,
+)
 
 
 PROTOCOL_VERSION = "diffdetect-hierarchical-calibration-v1"
@@ -35,6 +49,17 @@ THREE_CLASS_VALIDATION_MANIFEST_SHA256 = (
 )
 NSFW_LIMIT = 0.1
 TRUE_CLASSES = tuple(image_class.value for image_class in ImageClass)
+DISTILDIRE_REVISION = "5de48cf"
+DISTILDIRE_CLASSIFIER_SHA256 = (
+    "e6b76a13ae49eb83d39fb9b1f7de86bf9f63d1dddf0225ca7ad03690e6bc53bc"
+)
+DISTILDIRE_ADM_MD5 = "fd9dd2335b8736d521de0aed54bd90ca"
+DISTILDIRE_THRESHOLD = 0.9877818822860718
+DINOLIZER_REVISION = "3241ce530a685e6e0560db4e0d8aaa9f28de6fc6"
+DINOLIZER_CHECKPOINT_SHA256 = (
+    "96cb26f2536919d67b75a5aff195b683a1d8590fe596e6f1260ab7950883e2a2"
+)
+DINOLIZER_THRESHOLD = 0.5946570634841919
 
 MANIFEST_FIELDS = (
     "protocol_version",
@@ -61,6 +86,40 @@ EXCLUSION_FIELDS = {
     "source_id",
     "input_sha256",
 }
+
+RESULT_FIELDS = (
+    "protocol_version",
+    "manifest_sha256",
+    "manifest_index",
+    "sample_id",
+    "true_class",
+    "source_dataset",
+    "source_revision",
+    "source_partition",
+    "source_id",
+    "input_sha256",
+    "environment_id",
+    "attempt",
+    "run_started_utc",
+    "distildire_score",
+    "distildire_threshold",
+    "distildire_detected",
+    "distildire_duration_seconds",
+    "distildire_error",
+    "dinolizer_score",
+    "dinolizer_threshold",
+    "dinolizer_detected",
+    "dinolizer_duration_seconds",
+    "dinolizer_error",
+    "dinolizer_marked_area",
+    "dinolizer_processed_width",
+    "dinolizer_processed_height",
+    "dinolizer_window_count",
+    "localization_width",
+    "localization_height",
+    "localization_mode",
+    "total_duration_seconds",
+)
 
 
 @dataclass(frozen=True)
@@ -360,6 +419,210 @@ def verify_calibration_inputs(
     return resolved
 
 
+def select_smoke_records(
+    records: Sequence[CalibrationManifestRecord],
+) -> tuple[CalibrationManifestRecord, ...]:
+    """Select the earliest calibration-manifest record from each class."""
+
+    selected: dict[str, CalibrationManifestRecord] = {}
+    for record in records:
+        selected.setdefault(record.true_class, record)
+    if set(selected) != set(TRUE_CLASSES):
+        raise ValueError("smoke selection requires all three true classes")
+    return tuple(sorted(selected.values(), key=lambda record: record.manifest_index))
+
+
+def calibration_result_row(
+    *,
+    record: CalibrationManifestRecord,
+    runs: Sequence[DetectorRun],
+    manifest_sha256: str,
+    environment_id: str,
+    attempt: int,
+    run_started_utc: str,
+    total_duration_seconds: float,
+) -> dict[str, object]:
+    """Flatten raw detector evidence without applying an aggregation policy."""
+
+    by_name = {run.name: run for run in runs}
+    if len(runs) != 2 or set(by_name) != {"distildire", "dinolizer"}:
+        raise ValueError("expected exactly DistilDIRE and DinoLizer runs")
+    distildire = by_name["distildire"]
+    dinolizer = by_name["dinolizer"]
+    distildire_result = distildire.result
+    dinolizer_result = dinolizer.result
+    dinolizer_metadata = (
+        dict(dinolizer_result.metadata) if dinolizer_result is not None else {}
+    )
+    processed_size = dinolizer_metadata.get("processed_size")
+    if not (
+        isinstance(processed_size, tuple)
+        and len(processed_size) == 2
+        and all(type(value) is int for value in processed_size)
+    ):
+        processed_size = (None, None)
+    localization = (
+        dinolizer_result.localization_map if dinolizer_result is not None else None
+    )
+
+    return {
+        "protocol_version": PROTOCOL_VERSION,
+        "manifest_sha256": manifest_sha256,
+        "manifest_index": record.manifest_index,
+        "sample_id": record.sample_id,
+        "true_class": record.true_class,
+        "source_dataset": record.source_dataset,
+        "source_revision": record.source_revision,
+        "source_partition": record.source_partition,
+        "source_id": record.source_id,
+        "input_sha256": record.input_sha256,
+        "environment_id": environment_id,
+        "attempt": attempt,
+        "run_started_utc": run_started_utc,
+        "distildire_score": _result_value(distildire_result, "score"),
+        "distildire_threshold": _result_value(distildire_result, "threshold"),
+        "distildire_detected": _result_value(distildire_result, "detected"),
+        "distildire_duration_seconds": distildire.duration_seconds,
+        "distildire_error": distildire.error or "",
+        "dinolizer_score": _result_value(dinolizer_result, "score"),
+        "dinolizer_threshold": _result_value(dinolizer_result, "threshold"),
+        "dinolizer_detected": _result_value(dinolizer_result, "detected"),
+        "dinolizer_duration_seconds": dinolizer.duration_seconds,
+        "dinolizer_error": dinolizer.error or "",
+        "dinolizer_marked_area": dinolizer_metadata.get("marked_area", ""),
+        "dinolizer_processed_width": processed_size[0] or "",
+        "dinolizer_processed_height": processed_size[1] or "",
+        "dinolizer_window_count": dinolizer_metadata.get("window_count", ""),
+        "localization_width": localization.width if localization is not None else "",
+        "localization_height": localization.height if localization is not None else "",
+        "localization_mode": localization.mode if localization is not None else "",
+        "total_duration_seconds": total_duration_seconds,
+    }
+
+
+def run_calibration(args: argparse.Namespace) -> None:
+    """Run a smoke or complete detector pass over the calibration manifest."""
+
+    manifest_path = _file(args.manifest, "manifest")
+    records = load_calibration_manifest(manifest_path)
+    roots = {
+        "cocoglide": args.cocoglide_root,
+        "diffusiondb": args.diffusiondb_root,
+    }
+    resolved_paths = verify_calibration_inputs(records, roots)
+    selected = select_smoke_records(records) if args.smoke else records
+    manifest_sha256 = file_digest(manifest_path)
+
+    output = Path(args.output)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    completed = _existing_sample_ids(output, manifest_sha256) if args.resume else set()
+    if output.exists() and not args.resume:
+        raise FileExistsError(f"output already exists; use --resume: {output}")
+    pending = tuple(record for record in selected if record.sample_id not in completed)
+
+    artifact_metadata = _verify_model_artifacts(args)
+    execution_metadata = {
+        "protocol_version": PROTOCOL_VERSION,
+        "manifest": str(manifest_path),
+        "manifest_sha256": manifest_sha256,
+        "output": str(output),
+        "environment_id": args.environment_id,
+        "smoke": bool(args.smoke),
+        "resume": bool(args.resume),
+        "selected_samples": len(selected),
+        "already_completed": len(completed),
+        "status": "running",
+        "started_utc": _utc_now(),
+        "software": _software_environment(),
+        "artifacts": artifact_metadata,
+        "model_order": ["distildire", "dinolizer"],
+        "aggregation_policy_applied": False,
+        "first_pending_sample_includes_lazy_model_loading": bool(pending),
+    }
+    metadata_output = output.with_suffix(output.suffix + ".metadata.json")
+    _write_json(metadata_output, execution_metadata)
+
+    if not pending:
+        execution_metadata.update(
+            status="complete",
+            completed_samples=len(completed),
+            finished_utc=_utc_now(),
+            gpu=_gpu_environment(),
+        )
+        _write_json(metadata_output, execution_metadata)
+        return
+
+    _reset_gpu_peak_memory()
+    runner = DetectorRunner(
+        [
+            DistilDIREDetector(
+                repository_path=args.distildire_repository,
+                classifier_weights=args.distildire_classifier,
+                adm_weights=args.distildire_adm,
+                threshold=DISTILDIRE_THRESHOLD,
+                device=args.device,
+            ),
+            DinoLizerDetector(
+                repository_path=args.dinolizer_repository,
+                checkpoint_path=args.dinolizer_checkpoint,
+                threshold=DINOLIZER_THRESHOLD,
+                device=args.device,
+            ),
+        ]
+    )
+
+    append = output.exists()
+    processed_this_execution = 0
+    try:
+        with output.open("a", encoding="utf-8", newline="") as stream:
+            writer = csv.DictWriter(stream, fieldnames=RESULT_FIELDS, lineterminator="\n")
+            if not append:
+                writer.writeheader()
+            for record in pending:
+                started_utc = _utc_now()
+                started = perf_counter()
+                runs = runner.run(resolved_paths[record.sample_id])
+                total_duration = perf_counter() - started
+                writer.writerow(
+                    calibration_result_row(
+                        record=record,
+                        runs=runs,
+                        manifest_sha256=manifest_sha256,
+                        environment_id=args.environment_id,
+                        attempt=1,
+                        run_started_utc=started_utc,
+                        total_duration_seconds=total_duration,
+                    )
+                )
+                stream.flush()
+                os.fsync(stream.fileno())
+                processed_this_execution += 1
+                execution_metadata["processed_this_execution"] = (
+                    processed_this_execution
+                )
+                execution_metadata["last_sample_id"] = record.sample_id
+                _write_json(metadata_output, execution_metadata)
+    except BaseException:
+        execution_metadata.update(
+            status="interrupted",
+            processed_this_execution=processed_this_execution,
+            finished_utc=_utc_now(),
+            gpu=_gpu_environment(),
+        )
+        _write_json(metadata_output, execution_metadata)
+        raise
+
+    execution_metadata.update(
+        status="complete",
+        processed_this_execution=processed_this_execution,
+        completed_samples=len(completed) + processed_this_execution,
+        finished_utc=_utc_now(),
+        gpu=_gpu_environment(),
+        results_sha256=file_digest(output),
+    )
+    _write_json(metadata_output, execution_metadata)
+
+
 def _cocoglide_records(
     *,
     results_path: Path,
@@ -637,6 +900,133 @@ def _validate_record_collection(
         raise ValueError("manifest input hashes must be unique")
 
 
+def _verify_model_artifacts(args: argparse.Namespace) -> dict[str, object]:
+    distildire_repository = _directory(
+        args.distildire_repository,
+        "distildire_repository",
+    )
+    dinolizer_repository = _directory(args.dinolizer_repository, "dinolizer_repository")
+    classifier = _file(args.distildire_classifier, "distildire_classifier")
+    adm = _file(args.distildire_adm, "distildire_adm")
+    dinolizer_checkpoint = _file(args.dinolizer_checkpoint, "dinolizer_checkpoint")
+
+    distildire_head = _git_head(distildire_repository)
+    dinolizer_head = _git_head(dinolizer_repository)
+    if not distildire_head.startswith(DISTILDIRE_REVISION):
+        raise ValueError(f"unexpected DistilDIRE revision: {distildire_head}")
+    if dinolizer_head != DINOLIZER_REVISION:
+        raise ValueError(f"unexpected DinoLizer revision: {dinolizer_head}")
+
+    classifier_sha256 = file_digest(classifier)
+    adm_md5 = file_digest(adm, "md5")
+    dinolizer_sha256 = file_digest(dinolizer_checkpoint)
+    if classifier_sha256 != DISTILDIRE_CLASSIFIER_SHA256:
+        raise ValueError("DistilDIRE classifier SHA-256 does not match")
+    if adm_md5 != DISTILDIRE_ADM_MD5:
+        raise ValueError("ADM checkpoint MD5 does not match")
+    if dinolizer_sha256 != DINOLIZER_CHECKPOINT_SHA256:
+        raise ValueError("DinoLizer checkpoint SHA-256 does not match")
+
+    return {
+        "distildire_repository": str(distildire_repository),
+        "distildire_revision": distildire_head,
+        "distildire_classifier": str(classifier),
+        "distildire_classifier_sha256": classifier_sha256,
+        "distildire_adm": str(adm),
+        "distildire_adm_md5": adm_md5,
+        "dinolizer_repository": str(dinolizer_repository),
+        "dinolizer_revision": dinolizer_head,
+        "dinolizer_checkpoint": str(dinolizer_checkpoint),
+        "dinolizer_checkpoint_sha256": dinolizer_sha256,
+        "distildire_threshold": DISTILDIRE_THRESHOLD,
+        "dinolizer_threshold": DINOLIZER_THRESHOLD,
+        "device": args.device,
+    }
+
+
+def _existing_sample_ids(output: Path, manifest_sha256: str) -> set[str]:
+    if not output.exists():
+        return set()
+    with output.open("r", encoding="utf-8", newline="") as stream:
+        reader = csv.DictReader(stream)
+        if reader.fieldnames != list(RESULT_FIELDS):
+            raise ValueError("existing result columns do not match the frozen schema")
+        rows = list(reader)
+    if any(row["manifest_sha256"] != manifest_sha256 for row in rows):
+        raise ValueError("existing results belong to another manifest")
+    sample_ids = [row["sample_id"] for row in rows]
+    if len(sample_ids) != len(set(sample_ids)):
+        raise ValueError("existing results contain duplicate sample identifiers")
+    return set(sample_ids)
+
+
+def _software_environment() -> dict[str, object]:
+    packages = {}
+    for distribution in (
+        "diffdetect",
+        "numpy",
+        "Pillow",
+        "torch",
+        "torchvision",
+        "timm",
+        "albumentations",
+        "einops",
+        "safetensors",
+    ):
+        try:
+            packages[distribution] = importlib.metadata.version(distribution)
+        except importlib.metadata.PackageNotFoundError:
+            packages[distribution] = None
+    return {
+        "python": sys.version,
+        "platform": platform.platform(),
+        "packages": packages,
+        "gpu_at_start": _gpu_environment(),
+    }
+
+
+def _gpu_environment() -> dict[str, object]:
+    try:
+        torch = __import__("torch")
+    except ModuleNotFoundError:
+        return {"torch_available": False}
+    cuda_available = bool(torch.cuda.is_available())
+    data: dict[str, object] = {
+        "torch_available": True,
+        "cuda_available": cuda_available,
+        "torch_cuda_version": torch.version.cuda,
+    }
+    if cuda_available:
+        data.update(
+            device_name=torch.cuda.get_device_name(0),
+            device_count=torch.cuda.device_count(),
+            allocated_bytes=torch.cuda.memory_allocated(),
+            reserved_bytes=torch.cuda.memory_reserved(),
+            peak_allocated_bytes=torch.cuda.max_memory_allocated(),
+            peak_reserved_bytes=torch.cuda.max_memory_reserved(),
+        )
+    return data
+
+
+def _reset_gpu_peak_memory() -> None:
+    try:
+        torch = __import__("torch")
+    except ModuleNotFoundError:
+        return
+    if torch.cuda.is_available():
+        torch.cuda.reset_peak_memory_stats()
+
+
+def _git_head(repository: Path) -> str:
+    completed = subprocess.run(
+        ["git", "-C", str(repository), "rev-parse", "HEAD"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return completed.stdout.strip()
+
+
 def _selection_digest(value: str) -> str:
     return hashlib.sha256(f"{PROTOCOL_VERSION}:{value}".encode()).hexdigest()
 
@@ -709,6 +1099,22 @@ def _file(value: str | Path, name: str) -> Path:
     return path.resolve()
 
 
+def _result_value(result, name: str):
+    return getattr(result, name) if result is not None else ""
+
+
+def _utc_now() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _write_json(path: Path, value: Mapping[str, object]) -> None:
+    temporary = path.with_name(f".{path.name}.tmp")
+    with temporary.open("w", encoding="utf-8") as stream:
+        json.dump(value, stream, indent=2, sort_keys=True)
+        stream.write("\n")
+    temporary.replace(path)
+
+
 def _prepare_manifest_command(args: argparse.Namespace) -> None:
     records = build_calibration_manifest(
         cocoglide_results=args.cocoglide_results,
@@ -738,6 +1144,25 @@ def _parser() -> argparse.ArgumentParser:
     prepare.add_argument("--exclude-manifest", required=True, type=Path)
     prepare.add_argument("--output", required=True, type=Path)
     prepare.set_defaults(handler=_prepare_manifest_command)
+
+    run = commands.add_parser(
+        "run",
+        help="run the smoke test or complete frozen calibration inference",
+    )
+    run.add_argument("--manifest", required=True, type=Path)
+    run.add_argument("--cocoglide-root", required=True, type=Path)
+    run.add_argument("--diffusiondb-root", required=True, type=Path)
+    run.add_argument("--distildire-repository", required=True, type=Path)
+    run.add_argument("--distildire-classifier", required=True, type=Path)
+    run.add_argument("--distildire-adm", required=True, type=Path)
+    run.add_argument("--dinolizer-repository", required=True, type=Path)
+    run.add_argument("--dinolizer-checkpoint", required=True, type=Path)
+    run.add_argument("--device", default="cuda")
+    run.add_argument("--environment-id", required=True)
+    run.add_argument("--output", required=True, type=Path)
+    run.add_argument("--smoke", action="store_true")
+    run.add_argument("--resume", action="store_true")
+    run.set_defaults(handler=run_calibration)
     return parser
 
 

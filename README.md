@@ -259,3 +259,8 @@ grouped cross-validation rules, and commands are documented in
 The resulting metrics, ablations, retrospective comparison, and limitations
 are reported in
 [`docs/experiments/hierarchical-aggregation.md`](docs/experiments/hierarchical-aggregation.md).
+
+The prospective, evaluation-only confirmation protocol is documented in
+[`docs/experiments/hierarchical-external-confirmation-plan.md`](docs/experiments/hierarchical-external-confirmation-plan.md).
+It freezes 384 external samples, excludes both earlier manifests, verifies the
+serialized policy hash, and exposes no fitting or threshold-selection path.

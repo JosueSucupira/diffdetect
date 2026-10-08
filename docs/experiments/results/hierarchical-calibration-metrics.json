@@ -1,0 +1,299 @@
+{
+  "ablations": {
+    "without_dinolizer_marked_area": {
+      "feature_names": [
+        "distildire_score",
+        "dinolizer_score"
+      ],
+      "out_of_fold_metrics": {
+        "conclusive_confusion_matrix": {
+          "edited": {
+            "edited": 199,
+            "real": 10,
+            "synthetic": 42
+          },
+          "real": {
+            "edited": 2,
+            "real": 237,
+            "synthetic": 8
+          },
+          "synthetic": {
+            "edited": 171,
+            "real": 8,
+            "synthetic": 64
+          }
+        },
+        "end_to_end": {
+          "abstention_rate": 0.03515625,
+          "accuracy": 0.6510416666666666,
+          "balanced_accuracy": 0.6510416666666666,
+          "conclusive_accuracy": 0.6747638326585695,
+          "conclusive_macro_f1": 0.6472036089007727,
+          "conclusive_samples": 741,
+          "correct_samples": 500,
+          "coverage": 0.96484375,
+          "macro_f1": 0.6357656209065335,
+          "macro_precision": 0.675253836678984,
+          "macro_recall": 0.6510416666666666,
+          "per_class": {
+            "edited": {
+              "f1": 0.6337579617834395,
+              "precision": 0.5349462365591398,
+              "predicted": 372,
+              "recall": 0.77734375,
+              "support": 256
+            },
+            "real": {
+              "f1": 0.9275929549902153,
+              "precision": 0.9294117647058824,
+              "predicted": 255,
+              "recall": 0.92578125,
+              "support": 256
+            },
+            "synthetic": {
+              "f1": 0.34594594594594597,
+              "precision": 0.5614035087719298,
+              "predicted": 114,
+              "recall": 0.25,
+              "support": 256
+            }
+          }
+        },
+        "outcome_table": {
+          "edited": {
+            "edited": 199,
+            "inconclusive": 5,
+            "real": 10,
+            "synthetic": 42
+          },
+          "real": {
+            "edited": 2,
+            "inconclusive": 9,
+            "real": 237,
+            "synthetic": 8
+          },
+          "synthetic": {
+            "edited": 171,
+            "inconclusive": 13,
+            "real": 8,
+            "synthetic": 64
+          }
+        },
+        "sample_count": 768
+      },
+      "selected_thresholds": {
+        "level1": 0.71,
+        "level2": 0.5
+      }
+    },
+    "without_distildire_score": {
+      "feature_names": [
+        "dinolizer_score",
+        "dinolizer_marked_area"
+      ],
+      "out_of_fold_metrics": {
+        "conclusive_confusion_matrix": {
+          "edited": {
+            "edited": 197,
+            "real": 9,
+            "synthetic": 38
+          },
+          "real": {
+            "edited": 11,
+            "real": 237,
+            "synthetic": 0
+          },
+          "synthetic": {
+            "edited": 55,
+            "real": 8,
+            "synthetic": 174
+          }
+        },
+        "end_to_end": {
+          "abstention_rate": 0.05078125,
+          "accuracy": 0.7916666666666666,
+          "balanced_accuracy": 0.7916666666666666,
+          "conclusive_accuracy": 0.8340192043895748,
+          "conclusive_macro_f1": 0.8321330341462935,
+          "conclusive_samples": 729,
+          "correct_samples": 608,
+          "coverage": 0.94921875,
+          "macro_f1": 0.8107179080317469,
+          "macro_precision": 0.8342916709268864,
+          "macro_recall": 0.7916666666666666,
+          "per_class": {
+            "edited": {
+              "f1": 0.7591522157996147,
+              "precision": 0.7490494296577946,
+              "predicted": 263,
+              "recall": 0.76953125,
+              "support": 256
+            },
+            "real": {
+              "f1": 0.9294117647058823,
+              "precision": 0.9330708661417323,
+              "predicted": 254,
+              "recall": 0.92578125,
+              "support": 256
+            },
+            "synthetic": {
+              "f1": 0.7435897435897436,
+              "precision": 0.8207547169811321,
+              "predicted": 212,
+              "recall": 0.6796875,
+              "support": 256
+            }
+          }
+        },
+        "outcome_table": {
+          "edited": {
+            "edited": 197,
+            "inconclusive": 12,
+            "real": 9,
+            "synthetic": 38
+          },
+          "real": {
+            "edited": 11,
+            "inconclusive": 8,
+            "real": 237,
+            "synthetic": 0
+          },
+          "synthetic": {
+            "edited": 55,
+            "inconclusive": 19,
+            "real": 8,
+            "synthetic": 174
+          }
+        },
+        "sample_count": 768
+      },
+      "selected_thresholds": {
+        "level1": 0.74,
+        "level2": 0.5
+      }
+    }
+  },
+  "created_utc": "2026-10-08T17:13:44.422744+00:00",
+  "fold_class_counts": {
+    "1": {
+      "edited": 51,
+      "real": 51,
+      "synthetic": 52
+    },
+    "2": {
+      "edited": 51,
+      "real": 51,
+      "synthetic": 51
+    },
+    "3": {
+      "edited": 51,
+      "real": 51,
+      "synthetic": 51
+    },
+    "4": {
+      "edited": 52,
+      "real": 52,
+      "synthetic": 51
+    },
+    "5": {
+      "edited": 51,
+      "real": 51,
+      "synthetic": 51
+    }
+  },
+  "policy_file": "hierarchical-policy.json",
+  "policy_sha256": "c1214e33d698daa7cda082cd2c20ef0e4553d8d63b46ac77494e9685a50a1187",
+  "primary": {
+    "feature_names": [
+      "distildire_score",
+      "dinolizer_score",
+      "dinolizer_marked_area"
+    ],
+    "out_of_fold_metrics": {
+      "conclusive_confusion_matrix": {
+        "edited": {
+          "edited": 200,
+          "real": 10,
+          "synthetic": 38
+        },
+        "real": {
+          "edited": 9,
+          "real": 237,
+          "synthetic": 0
+        },
+        "synthetic": {
+          "edited": 57,
+          "real": 8,
+          "synthetic": 175
+        }
+      },
+      "end_to_end": {
+        "abstention_rate": 0.04427083333333337,
+        "accuracy": 0.796875,
+        "balanced_accuracy": 0.796875,
+        "conclusive_accuracy": 0.8337874659400545,
+        "conclusive_macro_f1": 0.8323149442433281,
+        "conclusive_samples": 734,
+        "correct_samples": 612,
+        "coverage": 0.9557291666666666,
+        "macro_f1": 0.8133817122036159,
+        "macro_precision": 0.8342959026951527,
+        "macro_recall": 0.796875,
+        "per_class": {
+          "edited": {
+            "f1": 0.7662835249042145,
+            "precision": 0.7518796992481203,
+            "predicted": 266,
+            "recall": 0.78125,
+            "support": 256
+          },
+          "real": {
+            "f1": 0.9275929549902153,
+            "precision": 0.9294117647058824,
+            "predicted": 255,
+            "recall": 0.92578125,
+            "support": 256
+          },
+          "synthetic": {
+            "f1": 0.746268656716418,
+            "precision": 0.8215962441314554,
+            "predicted": 213,
+            "recall": 0.68359375,
+            "support": 256
+          }
+        }
+      },
+      "outcome_table": {
+        "edited": {
+          "edited": 200,
+          "inconclusive": 8,
+          "real": 10,
+          "synthetic": 38
+        },
+        "real": {
+          "edited": 9,
+          "inconclusive": 10,
+          "real": 237,
+          "synthetic": 0
+        },
+        "synthetic": {
+          "edited": 57,
+          "inconclusive": 16,
+          "real": 8,
+          "synthetic": 175
+        }
+      },
+      "sample_count": 768
+    },
+    "selected_thresholds": {
+      "level1": 0.73,
+      "level2": 0.5
+    }
+  },
+  "schema_version": "diffdetect-hierarchical-calibration-metrics-v1",
+  "source": {
+    "manifest_sha256": "5a23bee4f802b9c88dd41030711aee173d27a3f8974371153439c0c363cde3a5",
+    "results_metadata_sha256": "cc686ae61e33a38ad10800024035bbc834818f5332ee6e45d27882a8ffa6df1c",
+    "results_sha256": "f104b2ea9b08e25122382583e081a6216b079f26f30c358e6c660edd53f7f27b"
+  }
+}

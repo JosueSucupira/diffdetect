@@ -1,0 +1,7 @@
+policy,true_class,real,synthetic,edited,inconclusive
+boolean,real,16,228,1,11
+boolean,synthetic,1,18,15,222
+boolean,edited,0,16,17,223
+hierarchical,real,234,0,12,10
+hierarchical,synthetic,4,179,54,19
+hierarchical,edited,11,30,209,6

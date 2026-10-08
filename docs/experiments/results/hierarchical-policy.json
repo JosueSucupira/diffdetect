@@ -1,0 +1,223 @@
+{
+  "calibration": {
+    "class_counts": {
+      "edited": 256,
+      "real": 256,
+      "synthetic": 256
+    },
+    "manifest_sha256": "5a23bee4f802b9c88dd41030711aee173d27a3f8974371153439c0c363cde3a5",
+    "previous_validation_used_for_fitting": false,
+    "protocol_version": "diffdetect-hierarchical-calibration-v1",
+    "results_metadata_sha256": "cc686ae61e33a38ad10800024035bbc834818f5332ee6e45d27882a8ffa6df1c",
+    "results_sha256": "f104b2ea9b08e25122382583e081a6216b079f26f30c358e6c660edd53f7f27b",
+    "sample_count": 768
+  },
+  "confidence_thresholds": {
+    "level1": 0.73,
+    "level2": 0.5
+  },
+  "created_utc": "2026-10-08T17:13:44.422744+00:00",
+  "cross_validation": {
+    "folds": 5,
+    "grouping_rule": {
+      "cocoglide": "source_id; real/edited pair kept together",
+      "diffusiondb": "source_id"
+    },
+    "minimum_coverage": 0.8,
+    "out_of_fold_metrics": {
+      "conclusive_confusion_matrix": {
+        "edited": {
+          "edited": 200,
+          "real": 10,
+          "synthetic": 38
+        },
+        "real": {
+          "edited": 9,
+          "real": 237,
+          "synthetic": 0
+        },
+        "synthetic": {
+          "edited": 57,
+          "real": 8,
+          "synthetic": 175
+        }
+      },
+      "end_to_end": {
+        "abstention_rate": 0.04427083333333337,
+        "accuracy": 0.796875,
+        "balanced_accuracy": 0.796875,
+        "conclusive_accuracy": 0.8337874659400545,
+        "conclusive_macro_f1": 0.8323149442433281,
+        "conclusive_samples": 734,
+        "correct_samples": 612,
+        "coverage": 0.9557291666666666,
+        "macro_f1": 0.8133817122036159,
+        "macro_precision": 0.8342959026951527,
+        "macro_recall": 0.796875,
+        "per_class": {
+          "edited": {
+            "f1": 0.7662835249042145,
+            "precision": 0.7518796992481203,
+            "predicted": 266,
+            "recall": 0.78125,
+            "support": 256
+          },
+          "real": {
+            "f1": 0.9275929549902153,
+            "precision": 0.9294117647058824,
+            "predicted": 255,
+            "recall": 0.92578125,
+            "support": 256
+          },
+          "synthetic": {
+            "f1": 0.746268656716418,
+            "precision": 0.8215962441314554,
+            "predicted": 213,
+            "recall": 0.68359375,
+            "support": 256
+          }
+        }
+      },
+      "outcome_table": {
+        "edited": {
+          "edited": 200,
+          "inconclusive": 8,
+          "real": 10,
+          "synthetic": 38
+        },
+        "real": {
+          "edited": 9,
+          "inconclusive": 10,
+          "real": 237,
+          "synthetic": 0
+        },
+        "synthetic": {
+          "edited": 57,
+          "inconclusive": 16,
+          "real": 8,
+          "synthetic": 175
+        }
+      },
+      "sample_count": 768
+    },
+    "seed": 20261007,
+    "selection_order": [
+      "highest end-to-end macro_f1",
+      "highest balanced_accuracy",
+      "highest coverage",
+      "smallest threshold sum",
+      "smallest level1 threshold",
+      "smallest level2 threshold"
+    ],
+    "shuffle": true,
+    "splitter": "StratifiedGroupKFold",
+    "standardization_scope": "training fold only",
+    "threshold_grid": {
+      "maximum": 0.95,
+      "minimum": 0.5,
+      "step": 0.01
+    }
+  },
+  "detectors": {
+    "dinolizer": {
+      "boolean_threshold_for_audit_only": 0.5946570634841919,
+      "checkpoint_sha256": "96cb26f2536919d67b75a5aff195b683a1d8590fe596e6f1260ab7950883e2a2",
+      "marked_area_definition": "proportion of pixels with edited probability at least 0.5",
+      "name": "dinolizer",
+      "repository_revision": "3241ce530a685e6e0560db4e0d8aaa9f28de6fc6",
+      "score_definition": "99th percentile of the edited-class probability map",
+      "target": "edited"
+    },
+    "distildire": {
+      "adm_md5": "fd9dd2335b8736d521de0aed54bd90ca",
+      "boolean_threshold_for_audit_only": 0.9877818822860718,
+      "classifier_sha256": "e6b76a13ae49eb83d39fb9b1f7de86bf9f63d1dddf0225ca7ad03690e6bc53bc",
+      "name": "distildire",
+      "repository_revision": "5de48cf255411b3f47833822e0afec32b2d66e61",
+      "score_definition": "sigmoid of the DistilDIRE classifier logit",
+      "target": "synthetic"
+    }
+  },
+  "feature_names": [
+    "distildire_score",
+    "dinolizer_score",
+    "dinolizer_marked_area"
+  ],
+  "feature_ranges": {
+    "dinolizer_marked_area": {
+      "maximum": 1.0,
+      "minimum": 0.0
+    },
+    "dinolizer_score": {
+      "maximum": 1.0,
+      "minimum": 0.0
+    },
+    "distildire_score": {
+      "maximum": 1.0,
+      "minimum": 0.0
+    }
+  },
+  "models": {
+    "level1": {
+      "coefficients": [
+        0.28144634479488273,
+        3.037284238536857,
+        1.605175513651311
+      ],
+      "configuration": {
+        "C": 1.0,
+        "class_weight": "balanced",
+        "max_iter": 1000,
+        "penalty": "l2",
+        "solver": "lbfgs",
+        "type": "logistic_regression"
+      },
+      "intercept": 1.9371110462750942,
+      "negative_class": "real",
+      "positive_class": "artificial"
+    },
+    "level2": {
+      "coefficients": [
+        0.005743896156158643,
+        -2.3959477432962974,
+        1.8695203018331679
+      ],
+      "configuration": {
+        "C": 1.0,
+        "class_weight": "balanced",
+        "max_iter": 1000,
+        "penalty": "l2",
+        "solver": "lbfgs",
+        "type": "logistic_regression"
+      },
+      "intercept": 0.8681640248800732,
+      "negative_class": "edited",
+      "positive_class": "synthetic",
+      "training_classes": [
+        "edited",
+        "synthetic"
+      ]
+    }
+  },
+  "policy_version": "diffdetect-hierarchical-aggregation-v1",
+  "scaler": {
+    "means": [
+      0.9768431826738985,
+      0.6386582369389847,
+      0.2665300940536712
+    ],
+    "scales": [
+      0.11664298674610077,
+      0.4062722524541651,
+      0.332782426715903
+    ],
+    "type": "standard_scaler"
+  },
+  "schema_version": "diffdetect-hierarchical-policy-v1",
+  "software": {
+    "numpy": "2.5.3",
+    "platform": "Linux-6.8.0-142-generic-x86_64-with-glibc2.39",
+    "python": "3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]",
+    "scikit_learn": "1.9.1"
+  }
+}

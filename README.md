@@ -15,6 +15,9 @@ aggregation achieved 6.64% end-to-end accuracy with 40.62% coverage and a
 59.38% conflict rate. This negative result and the next hierarchical
 aggregation step are documented in
 [`docs/experiments/three-class-validation.md`](docs/experiments/three-class-validation.md).
+The follow-up protocol is frozen in
+[`docs/experiments/hierarchical-aggregation-plan.md`](docs/experiments/hierarchical-aggregation-plan.md)
+before any aggregation parameters are fitted.
 
 An adapter inherits from `BaseDetector`, declares a name and whether it looks
 for fully synthetic or edited images, and implements `predict(image)`. The input
@@ -230,3 +233,29 @@ Review those terms before downloading or using the external code and weights.
 
 Install the package locally with `python -m pip install -e .`. Run the contract
 tests with `PYTHONPATH=src python -m unittest discover -s tests -v`.
+
+## Learned hierarchical aggregation
+
+The Boolean `classify` function remains unchanged. A separately frozen policy
+can combine the DistilDIRE score, DinoLizer p99 score, and DinoLizer marked
+area through two regularized logistic models: real versus artificial first,
+then synthetic versus edited. Runtime evaluation is pure Python and can
+abstain independently at either level:
+
+```python
+from diffdetect import classify_hierarchical, load_hierarchical_policy
+
+policy = load_hierarchical_policy("hierarchical-policy.json")
+decision = classify_hierarchical(runs, policy)
+
+print(decision.label, decision.reason)
+print(decision.p_artificial, decision.p_synthetic_given_artificial)
+```
+
+Policy fitting is an offline experiment and requires
+`python -m pip install -e '.[experiments]'`. The frozen calibration protocol,
+grouped cross-validation rules, and commands are documented in
+[`docs/experiments/hierarchical-aggregation-runbook.md`](docs/experiments/hierarchical-aggregation-runbook.md).
+The resulting metrics, ablations, retrospective comparison, and limitations
+are reported in
+[`docs/experiments/hierarchical-aggregation.md`](docs/experiments/hierarchical-aggregation.md).

@@ -218,3 +218,82 @@ The command creates a three-row CSV and a metadata JSON. Both must report a
 complete run, the frozen manifest hash, verified model revisions and hashes,
 and `aggregation_policy_applied: false`. Stop and inspect these artifacts
 before starting the 768-image inference.
+
+## 7. Run the complete raw-evidence inference
+
+Use `--resume` from the first attempt so every completed row remains reusable
+after a runtime interruption:
+
+```bash
+python experiments/hierarchical_aggregation.py run \
+  --manifest docs/experiments/results/hierarchical-calibration-manifest.csv \
+  --cocoglide-root "$COCOGLIDE_CALIBRATION_ROOT" \
+  --diffusiondb-root "$HIERARCHICAL_DIFFUSIONDB_ROOT" \
+  --distildire-repository /content/DistilDIRE \
+  --distildire-classifier "$DISTILDIRE_CLASSIFIER" \
+  --distildire-adm "$DISTILDIRE_ADM" \
+  --dinolizer-repository /content/DinoLizer \
+  --dinolizer-checkpoint "$DINOLIZER_CHECKPOINT" \
+  --device cuda \
+  --environment-id colab-t4-hierarchical-calibration-v1 \
+  --output "$RESULTS_ROOT/hierarchical-calibration.csv" \
+  --resume
+```
+
+The frozen complete result contains 768 unique rows, no detector errors, and
+has SHA-256
+`f104b2ea9b08e25122382583e081a6216b079f26f30c358e6c660edd53f7f27b`.
+Its metadata must report `status: complete` and
+`aggregation_policy_applied: false`.
+
+## 8. Fit and freeze the hierarchy offline
+
+Copy the complete CSV and its metadata into `docs/experiments/results`, then
+install the experiment-only dependency. A GPU is not used in this phase:
+
+```bash
+python -m pip install -e '.[experiments]'
+
+python experiments/hierarchical_aggregation.py fit-policy \
+  --results docs/experiments/results/hierarchical-calibration.csv \
+  --results-metadata \
+    docs/experiments/results/hierarchical-calibration.csv.metadata.json \
+  --manifest \
+    docs/experiments/results/hierarchical-calibration-manifest.csv \
+  --output-dir docs/experiments/results
+```
+
+The fitter verifies the frozen input hashes, keeps every CocoGlide real/edited
+pair in one of five grouped folds, standardizes features inside each training
+fold, and selects both confidence thresholds exclusively from out-of-fold
+predictions. It also fits the two prespecified descriptive ablations. The
+earlier three-class validation result is not opened by this command.
+
+The command writes the policy JSON, grouped fold assignments, out-of-fold
+predictions, the complete threshold table, calibration metrics, and a checksum
+list. Do not use `--overwrite` after reviewing and freezing these artifacts.
+
+The reviewed policy has SHA-256
+`c1214e33d698daa7cda082cd2c20ef0e4553d8d63b46ac77494e9685a50a1187`.
+
+## 9. Run the read-only retrospective comparison
+
+Only after freezing the policy and its hash, apply it to the earlier result:
+
+```bash
+python experiments/hierarchical_aggregation.py evaluate-policy \
+  --policy docs/experiments/results/hierarchical-policy.json \
+  --policy-sha256 \
+    c1214e33d698daa7cda082cd2c20ef0e4553d8d63b46ac77494e9685a50a1187 \
+  --baseline-results \
+    docs/experiments/results/three-class-validation-clean-cache.csv \
+  --baseline-metadata \
+    docs/experiments/results/three-class-validation-clean-cache.csv.metadata.json \
+  --output-dir docs/experiments/results
+```
+
+This command validates the frozen policy and baseline hashes, evaluates the
+serialized coefficients with the pure-Python runtime, and performs the
+prespecified 2,000-resample paired source-group bootstrap. It never imports
+scikit-learn and contains no fitting path. Results and limitations are
+documented in [`hierarchical-aggregation.md`](hierarchical-aggregation.md).

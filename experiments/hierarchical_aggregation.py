@@ -1130,6 +1130,107 @@ def _prepare_manifest_command(args: argparse.Namespace) -> None:
     print(f"manifest SHA-256: {digest}")
 
 
+def _fit_policy_command(args: argparse.Namespace) -> None:
+    """Fit and freeze the hierarchy from the complete raw calibration evidence."""
+
+    if __package__:
+        from experiments.hierarchical_training import (
+            file_digest as training_file_digest,
+            fit_and_write_policy,
+            load_calibration_evidence,
+        )
+    else:
+        from hierarchical_training import (  # type: ignore[no-redef]
+            file_digest as training_file_digest,
+            fit_and_write_policy,
+            load_calibration_evidence,
+        )
+
+    output_dir = Path(args.output_dir)
+    outputs = {
+        "policy_output": output_dir / "hierarchical-policy.json",
+        "oof_output": output_dir / "hierarchical-calibration-oof.csv",
+        "folds_output": output_dir / "hierarchical-calibration-folds.csv",
+        "thresholds_output": output_dir / "hierarchical-calibration-thresholds.csv",
+        "metrics_output": output_dir / "hierarchical-calibration-metrics.json",
+        "checksums_output": output_dir / "hierarchical-calibration-artifacts.sha256",
+    }
+    existing = [path for path in outputs.values() if path.exists()]
+    if existing and not args.overwrite:
+        raise FileExistsError(
+            "policy artifacts already exist; use --overwrite only before freezing: "
+            + ", ".join(str(path) for path in existing)
+        )
+
+    bundle = load_calibration_evidence(
+        results_path=args.results,
+        metadata_path=args.results_metadata,
+        manifest_path=args.manifest,
+    )
+    metrics = fit_and_write_policy(bundle=bundle, **outputs)
+    primary = metrics["primary"]
+    end_to_end = primary["out_of_fold_metrics"]["end_to_end"]
+    print(f"wrote hierarchical policy to {outputs['policy_output']}")
+    print(f"policy SHA-256: {training_file_digest(outputs['policy_output'])}")
+    print(f"selected thresholds: {primary['selected_thresholds']}")
+    print(f"out-of-fold coverage: {end_to_end['coverage']:.6f}")
+    print(f"out-of-fold balanced accuracy: {end_to_end['balanced_accuracy']:.6f}")
+    print(f"out-of-fold macro F1: {end_to_end['macro_f1']:.6f}")
+
+
+def _evaluate_policy_command(args: argparse.Namespace) -> None:
+    """Apply a frozen policy to the earlier result without refitting it."""
+
+    if __package__:
+        from experiments.hierarchical_retrospective import evaluate_retrospective
+    else:
+        from hierarchical_retrospective import evaluate_retrospective
+
+    output_dir = Path(args.output_dir)
+    expected_outputs = (
+        output_dir / "hierarchical-retrospective-predictions.csv",
+        output_dir / "hierarchical-retrospective-outcomes.csv",
+        output_dir / "hierarchical-retrospective-confusion.csv",
+        output_dir / "hierarchical-retrospective-outcomes.png",
+        output_dir / "hierarchical-retrospective-confusion.png",
+        output_dir / "hierarchical-retrospective-metrics.json",
+        output_dir / "hierarchical-retrospective-artifacts.sha256",
+    )
+    existing = [path for path in expected_outputs if path.exists()]
+    if existing and not args.overwrite:
+        raise FileExistsError(
+            "retrospective artifacts already exist; use --overwrite to replace them: "
+            + ", ".join(str(path) for path in existing)
+        )
+
+    metrics = evaluate_retrospective(
+        policy_path=args.policy,
+        expected_policy_sha256=args.policy_sha256,
+        baseline_results_path=args.baseline_results,
+        baseline_metadata_path=args.baseline_metadata,
+        output_dir=output_dir,
+    )
+    baseline = metrics["boolean_baseline"]["end_to_end"]
+    hierarchical = metrics["hierarchical"]["end_to_end"]
+    print(f"policy SHA-256: {args.policy_sha256}")
+    print(
+        "boolean baseline: "
+        f"coverage={baseline['coverage']:.6f}, "
+        f"balanced_accuracy={baseline['balanced_accuracy']:.6f}, "
+        f"macro_f1={baseline['macro_f1']:.6f}"
+    )
+    print(
+        "hierarchical policy: "
+        f"coverage={hierarchical['coverage']:.6f}, "
+        f"balanced_accuracy={hierarchical['balanced_accuracy']:.6f}, "
+        f"macro_f1={hierarchical['macro_f1']:.6f}"
+    )
+    print(
+        "all engineering gates passed: "
+        f"{metrics['engineering_acceptance']['all_engineering_gates_passed']}"
+    )
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
@@ -1163,6 +1264,29 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument("--smoke", action="store_true")
     run.add_argument("--resume", action="store_true")
     run.set_defaults(handler=run_calibration)
+
+    fit = commands.add_parser(
+        "fit-policy",
+        help="fit and freeze the two-level policy from raw calibration evidence",
+    )
+    fit.add_argument("--results", required=True, type=Path)
+    fit.add_argument("--results-metadata", required=True, type=Path)
+    fit.add_argument("--manifest", required=True, type=Path)
+    fit.add_argument("--output-dir", required=True, type=Path)
+    fit.add_argument("--overwrite", action="store_true")
+    fit.set_defaults(handler=_fit_policy_command)
+
+    evaluate = commands.add_parser(
+        "evaluate-policy",
+        help="apply a frozen hierarchy to the earlier three-class result",
+    )
+    evaluate.add_argument("--policy", required=True, type=Path)
+    evaluate.add_argument("--policy-sha256", required=True)
+    evaluate.add_argument("--baseline-results", required=True, type=Path)
+    evaluate.add_argument("--baseline-metadata", required=True, type=Path)
+    evaluate.add_argument("--output-dir", required=True, type=Path)
+    evaluate.add_argument("--overwrite", action="store_true")
+    evaluate.set_defaults(handler=_evaluate_policy_command)
     return parser
 
 

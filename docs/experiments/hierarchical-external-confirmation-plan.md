@@ -78,6 +78,29 @@ rule, source-file hashes, and revision are recorded in the source metadata,
 and the first eligible identities are retained. No detector score,
 preview-based quality judgment, or replacement after inference is allowed.
 
+## Frozen confirmation corpus
+
+Acquisition and provenance validation completed on 2026-10-09, before any
+external detector execution. The catalog was frozen with commit
+`61dc49274b0fe2dadbbb60125ea0ba97ddcf5849` of the validation tooling.
+
+- candidate catalog SHA-256:
+  `569c68cde4b6b980f910bd74b3e33957c953277416395f0590fcb5aabb05af3e`;
+- external manifest SHA-256:
+  `d901cd8e4ee5211399b50be579dda23c3814601da6763e2e46547f753c6a77a4`.
+
+The deterministic per-source selections are identified by these SHA-256
+digests:
+
+| Source | Selection SHA-256 |
+| --- | --- |
+| Open Images V6 | `0d7a109b8bfb58d43f3ba6c82e98937b1fc46e29375d4242b337521c66d5168d` |
+| RAISE-1k | `a12d198e420cd47b0e657c555462d05c21aba3e5427d99576082bd1097b7151a` |
+| AI Detector Arena v0.1 | `5f561a7f465d16c5907fbdcec1de25b347062911d927c7db0ac3d639f803268b` |
+| GenImage | `f1bf900bb7dd94f7dc7cd3812b724d5725c46be88bc2ee4f7cbded85073cccbc` |
+| MagicBrush | `9e5ac5094733c5a449085073ef3729f1faf36bb72fbbd59cdaff7ff058e5f3aa` |
+| AbstractEdit | `352b6efd59f91cf3730347c4bb7ba0b64981205b0e67345e039497e140ea6977` |
+
 ## Independence and exclusions
 
 The manifest builder requires both earlier manifests as exclusions:

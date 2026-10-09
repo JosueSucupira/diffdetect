@@ -52,6 +52,20 @@ class HierarchicalExternalValidationTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "source overlaps an earlier manifest"):
                 external.freeze_manifest(**fixture["freeze_args"])
 
+    def test_rejects_edited_origin_that_matches_an_external_input(self):
+        with tempfile.TemporaryDirectory() as directory, self._small_protocol():
+            fixture = self._fixture(Path(directory), external_origin_hash_overlap=True)
+            with self.assertRaisesRegex(
+                ValueError, "edited origin overlaps an external input"
+            ):
+                external.freeze_manifest(**fixture["freeze_args"])
+
+    def test_rejects_reused_open_images_identity_across_external_sources(self):
+        with tempfile.TemporaryDirectory() as directory, self._small_protocol():
+            fixture = self._fixture(Path(directory), external_origin_id_overlap=True)
+            with self.assertRaisesRegex(ValueError, "external source identity is reused"):
+                external.freeze_manifest(**fixture["freeze_args"])
+
     def test_evaluates_only_the_preregistered_policy_without_fitting(self):
         with tempfile.TemporaryDirectory() as directory, self._small_protocol():
             root = Path(directory)
@@ -120,7 +134,12 @@ class HierarchicalExternalValidationTests(unittest.TestCase):
         )
 
     def _fixture(
-        self, root: Path, overlap: bool = False, origin_overlap: bool = False
+        self,
+        root: Path,
+        overlap: bool = False,
+        origin_overlap: bool = False,
+        external_origin_hash_overlap: bool = False,
+        external_origin_id_overlap: bool = False,
     ):
         image_roots = {"source-a": root / "source-a", "source-b": root / "source-b"}
         for path in image_roots.values():
@@ -130,6 +149,10 @@ class HierarchicalExternalValidationTests(unittest.TestCase):
             for index in range(4):
                 source_root = "source-a" if index < 2 else "source-b"
                 source_dataset = f"dataset-{source_root[-1]}-{true_class}"
+                source_id = f"{true_class}-{index}"
+                if true_class == "real" and index == 0 and external_origin_id_overlap:
+                    source_dataset = "Open Images V6 validation"
+                    source_id = "0123456789abcdef"
                 filename = f"{true_class}-{index}.png"
                 image = image_roots[source_root] / filename
                 Image.new(
@@ -139,7 +162,12 @@ class HierarchicalExternalValidationTests(unittest.TestCase):
                 ).save(image)
                 origin = image_roots[source_root] / f"origin-{true_class}-{index}.png"
                 if true_class == "edited":
-                    Image.new("RGB", (4, 4), (90, index * 20, 10)).save(origin)
+                    if external_origin_hash_overlap and index == 0:
+                        origin.write_bytes(
+                            (image_roots["source-a"] / "real-0.png").read_bytes()
+                        )
+                    else:
+                        Image.new("RGB", (4, 4), (90, index * 20, 10)).save(origin)
                 rows.append(
                     {
                         "sample_id": f"external:{true_class}:{index}",
@@ -147,11 +175,23 @@ class HierarchicalExternalValidationTests(unittest.TestCase):
                         "source_dataset": source_dataset,
                         "source_revision": "revision-1",
                         "source_partition": "test",
-                        "source_id": f"{true_class}-{index}",
-                        "origin_dataset": "coco" if true_class == "edited" else "",
+                        "source_id": source_id,
+                        "origin_dataset": (
+                            "Open Images V7 validation"
+                            if true_class == "edited"
+                            and index == 0
+                            and external_origin_id_overlap
+                            else "coco"
+                            if true_class == "edited"
+                            else ""
+                        ),
                         "origin_id": (
                             "000000123456"
                             if true_class == "edited" and index == 0 and origin_overlap
+                            else "0123456789abcdef"
+                            if true_class == "edited"
+                            and index == 0
+                            and external_origin_id_overlap
                             else f"origin-{index}"
                             if true_class == "edited"
                             else ""

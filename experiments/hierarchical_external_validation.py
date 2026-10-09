@@ -745,6 +745,32 @@ def _validate_collection(records: Sequence[ExternalManifestRecord]) -> None:
         raise ValueError("external sample identifiers must be unique")
     if len({record.input_sha256 for record in records}) != len(records):
         raise ValueError("external input hashes must be unique")
+    origin_hashes = [
+        record.origin_input_sha256
+        for record in records
+        if record.origin_input_sha256
+    ]
+    if len(set(origin_hashes)) != len(origin_hashes):
+        raise ValueError("external origin hashes must be unique")
+    if set(origin_hashes) & {record.input_sha256 for record in records}:
+        raise ValueError("an edited origin overlaps an external input")
+    identities = {}
+    for record in records:
+        record_identities = _canonical_source_identities(
+            record.source_dataset, record.source_id
+        )
+        if record.origin_dataset:
+            record_identities.update(
+                _canonical_source_identities(record.origin_dataset, record.origin_id)
+            )
+        for identity in record_identities:
+            prior_sample = identities.get(identity)
+            if prior_sample is not None and prior_sample != record.sample_id:
+                raise ValueError(
+                    "an external source identity is reused by "
+                    f"{prior_sample} and {record.sample_id}"
+                )
+            identities[identity] = record.sample_id
     exclusion_sets = {record.exclusion_manifest_sha256s for record in records}
     if len(exclusion_sets) != 1:
         raise ValueError("external rows must reference the same exclusion manifests")
@@ -812,13 +838,23 @@ def _canonical_source_identities(dataset, source_id):
     dataset_key = dataset.strip().casefold()
     source_key = source_id.strip().casefold()
     identities = {(dataset_key, source_key)}
-    if dataset_key in {"nebula/cocoglide", "coco", "mscoco", "ms-coco"}:
+    compact_dataset = "".join(
+        character for character in dataset_key if character.isalnum()
+    )
+    if "coco" in compact_dataset:
         numeric_id = source_key.removeprefix("coco_")
         if numeric_id.isdigit():
             numeric_id = numeric_id.zfill(12)
         identities.add(("coco", numeric_id))
-    if dataset_key in {"poloclub/diffusiondb", "diffusiondb"}:
+    if "diffusiondb" in compact_dataset:
         identities.add(("diffusiondb", source_key))
+    if "openimages" in compact_dataset:
+        filename = PurePosixPath(source_key).name
+        image_id = filename.rsplit(".", 1)[0]
+        if len(image_id) == 16 and all(
+            character in "0123456789abcdef" for character in image_id
+        ):
+            identities.add(("openimages", image_id))
     return identities
 
 

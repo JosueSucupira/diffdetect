@@ -48,14 +48,21 @@ detector execution and the reason must be recorded.
 | Real | RAISE-1k distributed with Synthbuster | 64 | deterministic hash-ranked sample |
 | Synthetic | GenImage validation | 64 | 32 Wukong, 32 VQDM |
 | Synthetic | AI Detector Arena v0.1 | 64 | 32 GPT Image 1.5, 32 Gemini 3 Pro |
-| Edited | MagicBrush test | 64 | DALL-E 2 edited targets |
-| Edited | AURORA-Bench released model outputs | 64 | non-MagicBrush tasks only |
+| Edited | MagicBrush public dev | 64 | first-turn DALL-E 2 edited targets |
+| Edited | AbstractEdit explicit outputs | 64 | Flux-Kontext; Open Images V7 origins |
 
 Synthbuster was initially considered for the second synthetic source, but its
 official Zenodo file endpoint returned `404 Not Found` during acquisition on
 2026-10-08. It was replaced before manifest freezing and before any detector
 execution. The independently distributed RAISE-1k archive remained available,
 matched its published MD5, and is retained only as a real-image source.
+
+The edited allocation was also finalized before manifest freezing and detector
+execution. MagicBrush uses the public `dev` split because its test split is
+withheld. AbstractEdit revision
+`bc04f61586e5d5004a273a092131d01fd332e3e3` supplies released paired
+Flux-Kontext outputs and embedded Open Images V7 originals with auditable
+per-image provenance; it replaces the preliminary AURORA-Bench target.
 
 Primary source documentation:
 
@@ -64,11 +71,11 @@ Primary source documentation:
 - [AI Detector Arena v0.1 repository](https://github.com/AI-Detect-Arena/benchmark-dataset)
 - [GenImage repository](https://github.com/GenImage-Dataset/GenImage)
 - [MagicBrush repository](https://github.com/OSU-NLP-Group/MagicBrush)
-- [AURORA repository](https://github.com/McGill-NLP/AURORA)
+- [AbstractEdit dataset](https://huggingface.co/datasets/DucktorV/AbstractEdit)
 
-Selection within every stratum is deterministic: eligible identities are
-ordered by SHA-256 of `protocol_version + ":" + source_dataset + ":" +
-source_id`, and the first required identities are retained. No detector score,
+Selection within every stratum is deterministic. Its exact seed, ordering
+rule, source-file hashes, and revision are recorded in the source metadata,
+and the first eligible identities are retained. No detector score,
 preview-based quality judgment, or replacement after inference is allowed.
 
 ## Independence and exclusions
@@ -84,8 +91,10 @@ identifier, local path, and image SHA-256. Both the edited image and its
 recorded original are verified from disk. Canonical COCO identities are
 checked across aliases, so a derivative cannot evade exclusion merely by being
 repackaged in another editing dataset. It also requires unique confirmation
-sample identifiers and unique image hashes. Related originals and derivatives
-share a `group_id` so uncertainty estimates do not treat them as independent
+sample identifiers, image hashes, origin hashes, and canonical source
+identities. An edited origin may not match any real, synthetic, or edited input
+in the confirmation corpus. Related originals and derivatives share a
+`group_id` so uncertainty estimates do not treat them as independent
 observations.
 
 CocoGlide and DiffusionDB are not eligible external sources because they were

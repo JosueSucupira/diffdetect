@@ -47,14 +47,21 @@ detector execution and the reason must be recorded.
 | Real | Open Images V6 validation | 64 | deterministic hash-ranked sample |
 | Real | RAISE-1k distributed with Synthbuster | 64 | deterministic hash-ranked sample |
 | Synthetic | GenImage validation | 64 | 32 Wukong, 32 VQDM |
-| Synthetic | Synthbuster | 64 | 32 DALL-E 3, 32 Adobe Firefly |
+| Synthetic | AI Detector Arena v0.1 | 64 | 32 GPT Image 1.5, 32 Gemini 3 Pro |
 | Edited | MagicBrush test | 64 | DALL-E 2 edited targets |
 | Edited | AURORA-Bench released model outputs | 64 | non-MagicBrush tasks only |
+
+Synthbuster was initially considered for the second synthetic source, but its
+official Zenodo file endpoint returned `404 Not Found` during acquisition on
+2026-10-08. It was replaced before manifest freezing and before any detector
+execution. The independently distributed RAISE-1k archive remained available,
+matched its published MD5, and is retained only as a real-image source.
 
 Primary source documentation:
 
 - [Open Images V6 downloads](https://storage.googleapis.com/openimages/web/download.html)
-- [Synthbuster download script and RAISE pairing](https://github.com/grip-unina/ClipBased-SyntheticImageDetection/blob/main/data/synthbuster_download.sh)
+- [RAISE pairing and official checksum](https://github.com/grip-unina/ClipBased-SyntheticImageDetection/tree/main/data)
+- [AI Detector Arena v0.1 repository](https://github.com/AI-Detect-Arena/benchmark-dataset)
 - [GenImage repository](https://github.com/GenImage-Dataset/GenImage)
 - [MagicBrush repository](https://github.com/OSU-NLP-Group/MagicBrush)
 - [AURORA repository](https://github.com/McGill-NLP/AURORA)

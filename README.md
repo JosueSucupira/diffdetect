@@ -3,21 +3,64 @@ A modular framework for classifying images as real, diffusion-generated, or diff
 
 ## Development status
 
-Steps 1-4 define the common adapter interface, a registry that constructs
-adapters by name, a runner that executes them on an image, and a three-class
-decision rule. Step 5 adds an adapter for the external DistilDIRE ImageNet
-detector. Step 6 adds an experimental adapter for the external DinoLizer
-localization model.
+DiffDetect provides a modular framework inspired by the architectural patterns of BoxMOT.
+It includes native PyTorch model architectures (`diffdetect.models`), an automatic weight
+manager with cache and SHA-256 verification (`diffdetect.weights`), a multi-detector runner,
+and a learned hierarchical aggregation policy that classifies images as `real`, `synthetic`,
+or `edited`.
 
-The frozen three-class baseline has also been evaluated on 768 images. Both
-adapters completed without technical errors, but the conservative Boolean
-aggregation achieved 6.64% end-to-end accuracy with 40.62% coverage and a
-59.38% conflict rate. This negative result and the next hierarchical
-aggregation step are documented in
-[`docs/experiments/three-class-validation.md`](docs/experiments/three-class-validation.md).
-The follow-up protocol is frozen in
-[`docs/experiments/hierarchical-aggregation-plan.md`](docs/experiments/hierarchical-aggregation-plan.md)
-before any aggregation parameters are fitted.
+The hierarchical aggregation policy was evaluated in a prospective external confirmation
+experiment on 384 blind images across modern generators (GenImage VQDM/Wukong, AI Detector
+Arena Gemini 3 Pro/GPT Image 1.5, MagicBrush DALL-E 2, AbstractEdit Flux-Kontext, Open Images,
+and RAISE-1k). It resolved the Boolean baseline aggregation failure (raising coverage from
+40.62% to 93.49% with 0 conflicts and 86.72% real-image recall). The complete results,
+bootstrap confidence intervals, and generator family analyses are recorded in
+[`docs/experiments/hierarchical-external-confirmation.md`](docs/experiments/hierarchical-external-confirmation.md).
+
+## Quickstart
+
+Use the high-level `DiffDetect` pipeline for end-to-end classification in one line. On first
+execution, model weights and the frozen hierarchical policy are validated and cached
+automatically:
+
+```python
+from diffdetect import DiffDetect
+
+# Initialize with native models, auto-downloaded weights, and frozen policy
+detector = DiffDetect(device="cuda")
+
+# Predict single image (accepts file path, Path object, or PIL image)
+result = detector.predict("image.jpg")
+
+print(f"Label: {result.label.value if result.label else 'Inconclusive'}")
+print(f"Decision reason: {result.reason.value}")
+print(f"P(Artificial): {result.p_artificial:.2%}")
+print(f"P(Synthetic | Artificial): {result.p_synthetic_given_artificial:.2%}")
+print(f"Detector scores: {result.scores}")
+
+# If edited image evidence is detected, inspect the localization map
+if result.localization_map is not None:
+    print(f"Marked edit area: {result.marked_area:.2%}")
+    result.localization_map.save("localization_heatmap.png")
+```
+
+## Native models and weight management
+
+DiffDetect models are fully self-contained inside `diffdetect.models` and require no
+external repository clones or `sys.path` manipulation. Official model weights are verified
+by cryptographic hash (SHA-256 or MD5) and cached under `~/.cache/diffdetect/models/`
+(or the directory specified by `DIFFDETECT_CACHE_DIR`).
+
+```python
+from diffdetect import create_detector, ensure_weight
+
+# Check or download registered model weights explicitly
+checkpoint_path = ensure_weight("dinolizer_bfree")
+
+# Create standalone detectors with automatic weights
+synthetic_detector = create_detector("distildire", device="cuda")
+edited_detector = create_detector("dinolizer", device="cuda")
+```
 
 An adapter inherits from `BaseDetector`, declares a name and whether it looks
 for fully synthetic or edited images, and implements `predict(image)`. The input
@@ -262,5 +305,5 @@ are reported in
 
 The prospective, evaluation-only confirmation protocol is documented in
 [`docs/experiments/hierarchical-external-confirmation-plan.md`](docs/experiments/hierarchical-external-confirmation-plan.md).
-It freezes 384 external samples, excludes both earlier manifests, verifies the
-serialized policy hash, and exposes no fitting or threshold-selection path.
+The final confirmation results on 384 external images are reported in
+[`docs/experiments/hierarchical-external-confirmation.md`](docs/experiments/hierarchical-external-confirmation.md).

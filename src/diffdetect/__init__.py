@@ -15,6 +15,14 @@ from .hierarchical import (
 )
 from .registry import DetectorRegistry
 from .runner import DetectorRun, DetectorRunner
+from .weights import (
+    WEIGHT_REGISTRY,
+    WeightArtifact,
+    download_weight,
+    ensure_weight,
+    get_cache_dir,
+    verify_file,
+)
 
 __all__ = [
     "BaseDetector",
@@ -35,7 +43,13 @@ __all__ = [
     "HierarchicalDecisionReason",
     "HierarchicalPolicy",
     "LogisticPolicyModel",
+    "WEIGHT_REGISTRY",
+    "WeightArtifact",
     "classify",
     "classify_hierarchical",
+    "download_weight",
+    "ensure_weight",
+    "get_cache_dir",
     "load_hierarchical_policy",
+    "verify_file",
 ]

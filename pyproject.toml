@@ -17,3 +17,6 @@ models = ["torch", "torchvision", "timm"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+diffdetect = ["policies/*.json"]

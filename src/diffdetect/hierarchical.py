@@ -167,6 +167,9 @@ class HierarchicalClassificationResult:
         return self.label is None
 
 
+DEFAULT_POLICY_PATH = Path(__file__).parent / "policies" / "hierarchical-policy.json"
+
+
 def load_hierarchical_policy(path: str | Path) -> HierarchicalPolicy:
     """Read a policy JSON and bind its exact file digest to runtime results."""
 
@@ -182,6 +185,15 @@ def load_hierarchical_policy(path: str | Path) -> HierarchicalPolicy:
         payload,
         artifact_sha256=hashlib.sha256(data).hexdigest(),
     )
+
+
+def load_default_hierarchical_policy() -> HierarchicalPolicy:
+    """Load the frozen hierarchical aggregation policy bundled with diffdetect."""
+    if not DEFAULT_POLICY_PATH.is_file():
+        raise FileNotFoundError(
+            f"bundled hierarchical policy not found at: {DEFAULT_POLICY_PATH}"
+        )
+    return load_hierarchical_policy(DEFAULT_POLICY_PATH)
 
 
 def classify_hierarchical(

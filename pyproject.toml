@@ -13,6 +13,10 @@ dependencies = ["Pillow>=10"]
 
 [project.optional-dependencies]
 experiments = ["scikit-learn>=1.4,<2"]
+models = ["torch", "torchvision", "timm"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+diffdetect = ["policies/*.json"]

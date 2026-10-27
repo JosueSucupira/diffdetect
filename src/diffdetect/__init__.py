@@ -11,10 +11,22 @@ from .hierarchical import (
     HierarchicalPolicy,
     LogisticPolicyModel,
     classify_hierarchical,
+    load_default_hierarchical_policy,
     load_hierarchical_policy,
 )
+from .factory import create_detector
+from .models import NativeDinoLizerRuntime, NativeDistilDIRERuntime
+from .pipeline import DiffDetect, DiffDetectResult
 from .registry import DetectorRegistry
 from .runner import DetectorRun, DetectorRunner
+from .weights import (
+    WEIGHT_REGISTRY,
+    WeightArtifact,
+    download_weight,
+    ensure_weight,
+    get_cache_dir,
+    verify_file,
+)
 
 __all__ = [
     "BaseDetector",
@@ -22,6 +34,8 @@ __all__ = [
     "DecisionReason",
     "DetectionResult",
     "DetectionTarget",
+    "DiffDetect",
+    "DiffDetectResult",
     "DinoLizerDetector",
     "DinoLizerInference",
     "DistilDIREDetector",
@@ -35,7 +49,17 @@ __all__ = [
     "HierarchicalDecisionReason",
     "HierarchicalPolicy",
     "LogisticPolicyModel",
+    "NativeDinoLizerRuntime",
+    "NativeDistilDIRERuntime",
+    "WEIGHT_REGISTRY",
+    "WeightArtifact",
     "classify",
     "classify_hierarchical",
+    "create_detector",
+    "download_weight",
+    "ensure_weight",
+    "get_cache_dir",
+    "load_default_hierarchical_policy",
     "load_hierarchical_policy",
+    "verify_file",
 ]

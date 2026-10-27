@@ -13,6 +13,7 @@ from .hierarchical import (
     classify_hierarchical,
     load_hierarchical_policy,
 )
+from .models import NativeDinoLizerRuntime, NativeDistilDIRERuntime
 from .registry import DetectorRegistry
 from .runner import DetectorRun, DetectorRunner
 from .weights import (
@@ -43,6 +44,8 @@ __all__ = [
     "HierarchicalDecisionReason",
     "HierarchicalPolicy",
     "LogisticPolicyModel",
+    "NativeDinoLizerRuntime",
+    "NativeDistilDIRERuntime",
     "WEIGHT_REGISTRY",
     "WeightArtifact",
     "classify",

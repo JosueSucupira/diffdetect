@@ -40,8 +40,10 @@ print(f"Detector scores: {result.scores}")
 
 # If edited image evidence is detected, inspect the localization map
 if result.localization_map is not None:
+    import numpy as np
+
     print(f"Marked edit area: {result.marked_area:.2%}")
-    result.localization_map.save("localization_heatmap.png")
+    heatmap = np.asarray(result.localization_map)  # mode 'F' -> 2D float32 array
 ```
 
 ## Native models and weight management

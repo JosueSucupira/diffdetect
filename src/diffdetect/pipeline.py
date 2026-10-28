@@ -73,7 +73,11 @@ class DiffDetectResult:
 
     @property
     def localization_map(self) -> Image.Image | None:
-        """Floating-point localization map (mode F) if an edited detector returned one."""
+        """Floating-point localization map (mode F) if an edited detector returned one.
+
+        To visualize with Matplotlib or convert to a 2D float32 array, use
+        ``np.asarray(result.localization_map)``.
+        """
         for run in self.decision.runs:
             if run.result and run.result.localization_map is not None:
                 return run.result.localization_map

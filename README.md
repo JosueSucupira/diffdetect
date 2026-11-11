@@ -10,12 +10,14 @@ and a learned hierarchical aggregation policy that classifies images as `real`, 
 or `edited`.
 
 The hierarchical aggregation policy was evaluated in a prospective external confirmation
-experiment on 384 blind images across modern generators (GenImage VQDM/Wukong, AI Detector
-Arena Gemini 3 Pro/GPT Image 1.5, MagicBrush DALL-E 2, AbstractEdit Flux-Kontext, Open Images,
-and RAISE-1k). It resolved the Boolean baseline aggregation failure (raising coverage from
-40.62% to 93.49% with 0 conflicts and 86.72% real-image recall). The complete results,
-bootstrap confidence intervals, and generator family analyses are recorded in
-[`docs/experiments/hierarchical-external-confirmation.md`](docs/experiments/hierarchical-external-confirmation.md).
+experiment on 384 blind images across diffusion generators (GenImage VQDM/Wukong, Synthbuster
+Midjourney v5/Stable Diffusion XL, MagicBrush DALL-E 2, AbstractEdit Flux-Kontext, Open Images V6,
+and RAISE-1k). It resolved the Boolean baseline aggregation failure, raising coverage from
+45.83% to 95.31% (with 0 conflicts, 86.72% real recall, 75.78% synthetic recall, and 76.04% balanced
+accuracy), passing all confirmation criteria. Complete results, bootstrap confidence intervals,
+and generator analyses are recorded in
+[`docs/experiments/diffusion-only-external-results-v2.md`](docs/experiments/diffusion-only-external-results-v2.md)
+(and the broader exploratory evaluation in [`docs/experiments/hierarchical-external-confirmation.md`](docs/experiments/hierarchical-external-confirmation.md)).
 
 ## Quickstart
 

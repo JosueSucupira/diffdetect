@@ -8,7 +8,7 @@ from typing import Any
 from .adapters import DinoLizerDetector, DistilDIREDetector
 from .detector import BaseDetector
 
-DEFAULT_DISTILDIRE_THRESHOLD = 0.9877818822860718
+DEFAULT_DISTILDIRE_THRESHOLD = 0.5
 DEFAULT_DINOLIZER_THRESHOLD = 0.5946570634841919
 
 

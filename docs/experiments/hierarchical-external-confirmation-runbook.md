@@ -28,8 +28,6 @@ PYTHONPATH=src python experiments/hierarchical_external_validation.py \
   --root source-a=/path/to/source-a \
   --root source-b=/path/to/source-b \
   --exclude-manifest \
-    docs/experiments/results/three-class-validation-manifest.csv \
-  --exclude-manifest \
     docs/experiments/results/hierarchical-calibration-manifest.csv \
   --output \
     docs/experiments/results/hierarchical-external-manifest.csv

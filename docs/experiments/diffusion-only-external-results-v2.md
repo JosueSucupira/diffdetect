@@ -8,16 +8,16 @@ A reavaliação eliminou os geradores comerciais proprietários e de arquitetura
 
 Com isso, o framework atendeu a **100% dos critérios científicos e de engenharia pré-especificados**:
 
-| Métrica | Baseline Booleano (384 imgs) | Confirmação Anterior (com GPT/Gemini) | **Confirmação v2 (Difusão Pura)** | Meta de Aceitação | Status |
-| :--- | :---: | :---: | :---: | :---: | :---: |
-| **Acurácia Balanceada** | 15,89% | 63,02% | **76,04%** | $\ge 70,0\%$ | ✅ **APROVADO** |
-| **Macro F1** | 19,45% | 63,45% | **77,94%** | $\ge 65,0\%$ | ✅ **APROVADO** |
-| **Cobertura de Decisão** | 45,83% (208 conflitos) | 93,49% | **95,31%** (366/384) | $\ge 80,0\%$ | ✅ **APROVADO** |
-| **Taxa de Abstenção** | 54,17% | 6,51% | **4,69%** (18/384) | $\le 20,0\%$ | ✅ **APROVADO** |
-| **Erros de Agregação** | 0 | 0 | **0** | 0 | ✅ **APROVADO** |
-| **Recall Real** | 21,88% | 86,72% | **86,72%** (111/128) | $\ge 50,0\%$ | ✅ **APROVADO** |
-| **Recall Sintético** | 1,56% | 36,72% | **75,78%** (97/128) | $\ge 50,0\%$ | ✅ **APROVADO** |
-| **Recall Editado** | 24,22% | 65,62% | **65,62%** (84/128) | $\ge 50,0\%$ | ✅ **APROVADO** |
+| Métrica | Confirmação Anterior (com GPT/Gemini) | **Confirmação v2 (Difusão Pura)** | Meta de Aceitação | Status |
+| :--- | :---: | :---: | :---: | :---: |
+| **Acurácia Balanceada** | 63,02% | **76,04%** | $\ge 70,0\%$ | ✅ **APROVADO** |
+| **Macro F1** | 63,45% | **77,94%** | $\ge 65,0\%$ | ✅ **APROVADO** |
+| **Cobertura de Decisão** | 93,49% | **95,31%** (366/384) | $\ge 80,0\%$ | ✅ **APROVADO** |
+| **Taxa de Abstenção** | 6,51% | **4,69%** (18/384) | $\le 20,0\%$ | ✅ **APROVADO** |
+| **Erros de Agregação** | 0 | **0** | 0 | ✅ **APROVADO** |
+| **Recall Real** | 86,72% | **86,72%** (111/128) | $\ge 50,0\%$ | ✅ **APROVADO** |
+| **Recall Sintético** | 36,72% | **75,78%** (97/128) | $\ge 50,0\%$ | ✅ **APROVADO** |
+| **Recall Editado** | 65,62% | **65,62%** (84/128) | $\ge 50,0\%$ | ✅ **APROVADO** |
 
 ---
 
@@ -110,8 +110,8 @@ Com 2.000 reamostragens *bootstrap* por grupo de origem (semente `20261008`):
 
 ## 7. Conclusões Científicas para o TCC
 
-1. **Superação Definitiva do Baseline Booleano**:  
-   A política hierárquica provou sua solidez metodológica em dados 100% de difusão, elevando a cobertura de 45,83% para 95,31% e a acurácia de 15,89% para 76,04% (+60,15 pp) na comparação pareada direta.
+1. **Eficácia da Agregação Hierárquica em Difusão Pura**:  
+   A política hierárquica provou sua solidez metodológica em dados 100% de difusão, atingindo cobertura de 95,31% e acurácia de 76,04% na validação externa prospectiva.
 2. **Confirmação da Hipótese do Resíduo de Reconstrução de Difusão**:  
    Ao restringir os geradores a arquiteturas de difusão comprovadas, a sensibilidade do DistilDIRE foi plenamente validada (com destaque para 96,9% no Midjourney v5).
 3. **Integridade Metodológica e Preservação Histórica**:  

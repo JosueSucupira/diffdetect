@@ -5,7 +5,6 @@ import unittest
 from pathlib import Path
 
 from diffdetect import (
-    DecisionReason,
     DetectionResult,
     DetectionTarget,
     DetectorRun,
@@ -13,7 +12,6 @@ from diffdetect import (
     HierarchicalPolicy,
     ImageClass,
     LogisticPolicyModel,
-    classify,
     classify_hierarchical,
     load_hierarchical_policy,
 )
@@ -160,14 +158,6 @@ class HierarchicalClassificationTests(unittest.TestCase):
                 loaded.artifact_sha256,
                 hashlib.sha256(path.read_bytes()).hexdigest(),
             )
-
-    def test_boolean_classifier_remains_independent(self):
-        evidence = runs(0.9, dinolizer_score=0.9, marked_area=0.1)
-        hierarchical = classify_hierarchical(evidence, policy())
-        boolean = classify(evidence)
-        self.assertEqual(hierarchical.label, ImageClass.SYNTHETIC)
-        self.assertIsNone(boolean.label)
-        self.assertEqual(boolean.reason, DecisionReason.CONFLICTING_EVIDENCE)
 
     def test_joint_decision_rule_eliminates_inconclusive_and_computes_joint_probabilities(self):
         # Case that was inconclusive under cascade (0.5, 0.5, 0.5)

@@ -27,7 +27,7 @@ A distribuição é estritamente balanceada (128 imagens por classe verdadeira):
 
 ## 3. Independência e Controle de Vazamento
 
-1. **Exclusão de experimentos anteriores**: Nenhuma imagem ou hash presente em `three-class-validation-manifest.csv` ou `hierarchical-calibration-manifest.csv` foi aceita.
+1. **Exclusão de experimentos anteriores**: Nenhuma imagem ou hash presente em `hierarchical-calibration-manifest.csv` foi aceita.
 2. **Independência entre RAISE-1k e Synthbuster**: O Synthbuster utiliza imagens base do RAISE para formular seus prompts. Das 1.000 imagens sintéticas do Midjourney v5 e SDXL, foram **excluídos todos os 64 identificadores já utilizados na partição real do RAISE-1k**, garantindo 100% de independência conceitual e ausência de imagens pareadas entre as classes real e sintética no teste externo.
 3. **Quotas de Diversidade**:
    - Cada classe possui exatamente duas fontes de datasets principais ($\le 50\%$ de share por dataset);

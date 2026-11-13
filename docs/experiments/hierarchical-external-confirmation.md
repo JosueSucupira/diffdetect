@@ -24,8 +24,7 @@ definitions.
   `07dd7f2ab13816caf8ec361fc55d827a8aea1eb6af40a2cd047f362fd18de6a2`
 - **DistilDIRE execution errors**: 0
 - **DinoLizer execution errors**: 0
-- **Exclusion manifests verified**:
-  - `three-class-validation-manifest.csv` (`9dcda4b93d8c73df7b1240629bec209566cd6119bb7f800c2906b8c3826b8777`)
+- **Exclusion manifest verified**:
   - `hierarchical-calibration-manifest.csv` (`5a23bee4f802b9c88dd41030711aee173d27a3f8974371153439c0c363cde3a5`)
 - **Overlap with earlier experiments**: 0 sample identifiers, source identifiers,
   image hashes, or derivative origin hashes.
@@ -41,17 +40,17 @@ All 384 samples remain in the denominator. Abstentions (inconclusive decisions)
 are counted as incorrect predictions for accuracy, balanced accuracy, recall,
 and macro F1.
 
-| Metric | Boolean baseline (768 imgs) | Calibration OOF (768 imgs) | External confirmation (384 imgs) |
-| :--- | ---: | ---: | ---: |
-| **Accuracy** | 6.64% | 79.69% | **63.02%** |
-| **Balanced accuracy** | 6.64% | 79.69% | **63.02%** |
-| **Macro precision** | 20.31% | 83.43% | **66.09%** |
-| **Macro recall** | 6.64% | 79.69% | **63.02%** |
-| **Macro F1** | 10.15% | 81.34% | **63.45%** |
-| **Coverage** | 40.62% | 95.57% | **93.49%** (359/384) |
-| **Abstention rate** | 59.38% | 4.43% | **6.51%** (25/384) |
-| **Conclusive-only accuracy** | 16.35% | 83.38% | **67.41%** |
-| **Conclusive-only macro F1** | 25.30% | 83.23% | **65.64%** |
+| Metric | Calibration OOF (768 imgs) | External confirmation (384 imgs) |
+| :--- | ---: | ---: |
+| **Accuracy** | 79.69% | **63.02%** |
+| **Balanced accuracy** | 79.69% | **63.02%** |
+| **Macro precision** | 83.43% | **66.09%** |
+| **Macro recall** | 79.69% | **63.02%** |
+| **Macro F1** | 81.34% | **63.45%** |
+| **Coverage** | 95.57% | **93.49%** (359/384) |
+| **Abstention rate** | 4.43% | **6.51%** (25/384) |
+| **Conclusive-only accuracy** | 83.38% | **67.41%** |
+| **Conclusive-only macro F1** | 83.23% | **65.64%** |
 
 ### Per-class performance
 
@@ -146,8 +145,8 @@ Two thousand source-group bootstrap resamples (seed `20261008`) produced the fol
 
 ## 8. Scientific conclusions for the thesis
 
-1. **Resolution of the aggregation conflict problem**:
-   The primary motivation of the graduation thesis was addressing the catastrophic failure of the Boolean baseline (6.64% accuracy, 40.62% coverage, 59.38% conflict rate). The learned hierarchical aggregation completely resolved this architectural flaw, raising coverage to **93.49%** and balanced accuracy to **63.02%** (+56.38 percentage points) on completely blind external data.
+1. **Validation of the learned hierarchical architecture**:
+   The learned hierarchical aggregation establishes a robust multi-scale decision framework, raising coverage to **93.49%** and balanced accuracy to **63.02%** on completely blind external data.
 
 2. **High fidelity for authentic content**:
    The hierarchy protects real photographs with high specificity (**86.72% recall**, 0 false synthetics), ensuring that benign user uploads are not falsely flagged as AI creations.

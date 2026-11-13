@@ -24,6 +24,8 @@ from time import perf_counter
 from PIL import Image, ImageDraw
 
 from diffdetect import (
+    DetectionResult,
+    DetectionTarget,
     DinoLizerDetector,
     DistilDIREDetector,
     DetectorRun,
@@ -46,11 +48,6 @@ if __package__:
         calibration_result_row,
         file_digest,
     )
-    from experiments.hierarchical_retrospective import (
-        _coverage_by_class,
-        _runs_from_row,
-        _stage_metrics,
-    )
     from experiments.hierarchical_training import TRUE_CLASSES, multiclass_metrics
 else:
     from hierarchical_aggregation import (  # type: ignore[no-redef]
@@ -65,11 +62,6 @@ else:
         _write_json,
         calibration_result_row,
         file_digest,
-    )
-    from hierarchical_retrospective import (  # type: ignore[no-redef]
-        _coverage_by_class,
-        _runs_from_row,
-        _stage_metrics,
     )
     from hierarchical_training import TRUE_CLASSES, multiclass_metrics
 
@@ -1055,6 +1047,146 @@ def _validate_relative_path(value):
         or "." in path.parts
     ):
         raise ValueError(f"path must be a normalized relative path: {value}")
+
+
+def _boolean(value: str) -> bool:
+    normalized = value.strip().lower()
+    if normalized == "true":
+        return True
+    if normalized == "false":
+        return False
+    raise ValueError(f"invalid boolean value: {value}")
+
+
+def _runs_from_row(row: Mapping[str, str]) -> tuple[DetectorRun, DetectorRun]:
+    distildire = DetectorRun(
+        name="distildire",
+        target=DetectionTarget.SYNTHETIC,
+        duration_seconds=float(row["distildire_duration_seconds"]),
+        result=DetectionResult(
+            detected=_boolean(row["distildire_detected"]),
+            score=_bounded_float(row["distildire_score"]),
+            threshold=_bounded_float(row["distildire_threshold"]),
+        ),
+    )
+    dinolizer = DetectorRun(
+        name="dinolizer",
+        target=DetectionTarget.EDITED,
+        duration_seconds=float(row["dinolizer_duration_seconds"]),
+        result=DetectionResult(
+            detected=_boolean(row["dinolizer_detected"]),
+            score=_bounded_float(row["dinolizer_score"]),
+            threshold=_bounded_float(row["dinolizer_threshold"]),
+            metadata={"marked_area": _bounded_float(row["dinolizer_marked_area"])},
+        ),
+    )
+    return distildire, dinolizer
+
+
+def _coverage_by_class(truth, predictions):
+    result = {}
+    for target in TRUE_CLASSES:
+        indexes = [index for index, label in enumerate(truth) if label == target]
+        conclusive = sum(predictions[index] is not None for index in indexes)
+        result[target] = {
+            "support": len(indexes),
+            "conclusive": conclusive,
+            "coverage": conclusive / len(indexes),
+            "abstention_rate": 1.0 - conclusive / len(indexes),
+        }
+    return result
+
+
+def _classification_metrics_for_classes(truth, predictions, classes):
+    total = len(truth)
+    conclusive = sum(prediction is not None for prediction in predictions)
+    correct = sum(left == right for left, right in zip(truth, predictions))
+    per_class = {}
+    recalls = []
+    f1s = []
+    for target in classes:
+        true_positive = sum(
+            left == target and right == target
+            for left, right in zip(truth, predictions)
+        )
+        actual = sum(left == target for left in truth)
+        predicted = sum(right == target for right in predictions)
+        precision = true_positive / predicted if predicted else 0.0
+        recall = true_positive / actual if actual else 0.0
+        f1 = (
+            2 * precision * recall / (precision + recall)
+            if precision + recall
+            else 0.0
+        )
+        per_class[target] = {"precision": precision, "recall": recall, "f1": f1}
+        recalls.append(recall)
+        f1s.append(f1)
+    return {
+        "sample_count": total,
+        "accuracy": correct / total if total else 0.0,
+        "balanced_accuracy": sum(recalls) / len(classes),
+        "macro_f1": sum(f1s) / len(classes),
+        "coverage": conclusive / total if total else 0.0,
+        "per_class": per_class,
+    }
+
+
+def _stage_metrics(rows, decisions, hierarchical_labels) -> dict[str, object]:
+    level1_truth = [
+        "real" if row["true_class"] == "real" else "artificial" for row in rows
+    ]
+    level1_predictions = []
+    for decision in decisions:
+        if decision.p_artificial is None:
+            level1_predictions.append(None)
+        elif decision.p_artificial <= 1.0 - decision.level1_threshold:
+            level1_predictions.append("real")
+        elif decision.p_artificial >= decision.level1_threshold:
+            level1_predictions.append("artificial")
+        else:
+            level1_predictions.append(None)
+
+    artificial_indexes = [
+        index for index, row in enumerate(rows) if row["true_class"] != "real"
+    ]
+    level2_truth = [rows[index]["true_class"] for index in artificial_indexes]
+    level2_end_to_end = [
+        hierarchical_labels[index]
+        if hierarchical_labels[index] in {"synthetic", "edited"}
+        else None
+        for index in artificial_indexes
+    ]
+    reached_level2 = [
+        index
+        for index in artificial_indexes
+        if decisions[index].p_synthetic_given_artificial is not None
+    ]
+    conditional_truth = [rows[index]["true_class"] for index in reached_level2]
+    conditional_predictions = [
+        hierarchical_labels[index]
+        if hierarchical_labels[index] in {"synthetic", "edited"}
+        else None
+        for index in reached_level2
+    ]
+    return {
+        "level1_real_vs_artificial": _classification_metrics_for_classes(
+            level1_truth,
+            level1_predictions,
+            ("real", "artificial"),
+        ),
+        "level2_synthetic_vs_edited_end_to_end": _classification_metrics_for_classes(
+            level2_truth,
+            level2_end_to_end,
+            ("synthetic", "edited"),
+        ),
+        "level2_synthetic_vs_edited_conditional_on_reaching_level2": (
+            _classification_metrics_for_classes(
+                conditional_truth,
+                conditional_predictions,
+                ("synthetic", "edited"),
+            )
+        ),
+    }
 
 
 def _validate_digest(value, name):

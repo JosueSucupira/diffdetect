@@ -1,7 +1,7 @@
 """Public API for DiffDetect detector adapters."""
 
 from .adapters import DinoLizerDetector, DinoLizerInference, DistilDIREDetector
-from .classification import ClassificationResult, DecisionReason, ImageClass, classify
+from .classification import ImageClass
 from .detector import BaseDetector, DetectionResult, DetectionTarget
 from .hierarchical import (
     HIERARCHICAL_FEATURES,
@@ -30,8 +30,6 @@ from .weights import (
 
 __all__ = [
     "BaseDetector",
-    "ClassificationResult",
-    "DecisionReason",
     "DetectionResult",
     "DetectionTarget",
     "DiffDetect",
@@ -53,7 +51,6 @@ __all__ = [
     "NativeDistilDIRERuntime",
     "WEIGHT_REGISTRY",
     "WeightArtifact",
-    "classify",
     "classify_hierarchical",
     "create_detector",
     "download_weight",

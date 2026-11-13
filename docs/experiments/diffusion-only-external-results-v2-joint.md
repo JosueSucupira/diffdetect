@@ -40,18 +40,18 @@ $$\hat{y} = \arg\max_{c \in \{\text{real}, \text{sintética}, \text{editada}\}} 
 
 ## 2. Comparativo de Desempenho
 
-| Métrica | Linha de Base Booleana | Hierárquica Cascata (com Inconclusivo) | **Hierárquica Conjunta Bayes (v2-Joint)** | Meta | Status |
-| :--- | :---: | :---: | :---: | :---: | :---: |
-| **Acurácia Geral** | 15,89% | 76,04% | **78,91%** (303/384) | $\ge 70\%$ | ✅ Aprovado |
-| **Acurácia Balanceada** | 15,89% | 76,04% | **78,91%** | $\ge 70\%$ | ✅ Aprovado |
-| **Macro F1** | 15,00% | 77,94% | **78,75%** | $\ge 65\%$ | ✅ Aprovado |
-| **Macro Precisão** | 22,23% | 80,03% | **78,66%** | — | Informativo |
-| **Macro Recall** | 15,89% | 76,04% | **78,91%** | $\ge 50\%$ | ✅ Aprovado |
-| **Cobertura de Decisão** | 45,83% | 95,31% | **100,00%** (384/384) | $\ge 80\%$ | ✅ Aprovado |
-| **Taxa de Abstenção** | 54,17% | 4,69% | **0,00%** (0/384) | $\le 20\%$ | ✅ Aprovado |
-| **Recall — Real** | 21,88% | 86,72% | **94,53%** (121/128) | $\ge 50\%$ | ✅ Aprovado |
-| **Recall — Sintética** | 1,56% | 75,78% | **75,78%** (97/128) | $\ge 50\%$ | ✅ Aprovado |
-| **Recall — Editada** | 24,22% | 65,62% | **66,41%** (85/128) | $\ge 50\%$ | ✅ Aprovado |
+| Métrica | Hierárquica Cascata (Legado com Inconclusivo) | **Hierárquica Conjunta Bayes (v2-Joint)** | Meta | Status |
+| :--- | :---: | :---: | :---: | :---: |
+| **Acurácia Geral** | 76,04% | **78,91%** (303/384) | $\ge 70\%$ | ✅ Aprovado |
+| **Acurácia Balanceada** | 76,04% | **78,91%** | $\ge 70\%$ | ✅ Aprovado |
+| **Macro F1** | 77,94% | **78,75%** | $\ge 65\%$ | ✅ Aprovado |
+| **Macro Precisão** | 80,03% | **78,66%** | — | Informativo |
+| **Macro Recall** | 76,04% | **78,91%** | $\ge 50\%$ | ✅ Aprovado |
+| **Cobertura de Decisão** | 95,31% | **100,00%** (384/384) | $\ge 80\%$ | ✅ Aprovado |
+| **Taxa de Abstenção** | 4,69% | **0,00%** (0/384) | $\le 20\%$ | ✅ Aprovado |
+| **Recall — Real** | 86,72% | **94,53%** (121/128) | $\ge 50\%$ | ✅ Aprovado |
+| **Recall — Sintética** | 75,78% | **75,78%** (97/128) | $\ge 50\%$ | ✅ Aprovado |
+| **Recall — Editada** | 65,62% | **66,41%** (85/128) | $\ge 50\%$ | ✅ Aprovado |
 
 ---
 

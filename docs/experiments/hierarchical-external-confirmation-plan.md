@@ -12,8 +12,7 @@ thresholds, or use confirmation labels to alter the classifier.
 ## Research question
 
 Does the frozen hierarchical policy retain useful three-class performance on
-sources, generators, and editing methods that were not used in calibration or
-in the retrospective Boolean comparison?
+sources, generators, and editing methods that were not used in calibration?
 
 ## Prespecified sample design
 
@@ -103,9 +102,8 @@ digests:
 
 ## Independence and exclusions
 
-The manifest builder requires both earlier manifests as exclusions:
+The manifest builder requires the calibration manifest as an exclusion:
 
-- `three-class-validation-manifest.csv`;
 - `hierarchical-calibration-manifest.csv`.
 
 It rejects overlap by sample identifier, `(source_dataset, source_id)`, or

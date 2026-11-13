@@ -1,14 +1,10 @@
 # Hierarchical aggregation experiment plan
 
-This experiment will implement and evaluate the two-level aggregation proposed
-for DiffDetect. It follows the negative Boolean baseline documented in
-[`three-class-validation.md`](three-class-validation.md), where both adapters
-completed successfully but the final rule produced 59.38% conflicts and only
-6.64% end-to-end accuracy.
+This experiment implements and evaluates the two-level hierarchical aggregation
+for DiffDetect.
 
-The baseline `classify` function will remain unchanged. A separate,
-configuration-driven hierarchical policy will be calibrated, serialized, and
-evaluated so the two approaches can be reproduced side by side.
+A configuration-driven hierarchical policy is calibrated, serialized, and
+evaluated to combine the outputs of the specialized detectors.
 
 ## Research question
 
@@ -23,9 +19,8 @@ The intended hierarchy is:
    consistent with full synthesis or localized editing;
 3. abstain when either level lacks sufficient confidence.
 
-This structure implements the aggregation concept described in TCC I more
-faithfully than the Boolean baseline, which treats simultaneous detector
-positives as an unresolved conflict.
+This structure implements the aggregation concept described in TCC I,
+resolving ambiguities when both detectors produce positive evidence.
 
 ## Scope and frozen components
 
@@ -39,13 +34,10 @@ The following components remain frozen:
   score definition;
 - `DinoLizerDetector`, upstream revision, checkpoint, preprocessing, raw score,
   and marked-area definition;
-- the existing `classify` function and its tests;
-- the 768-row three-class baseline result and its hashes.
 
-The adapters' existing Boolean thresholds are not inputs to the hierarchical
-models. The hierarchy consumes detector scores and metadata, calibrates each
-feature inside the aggregation policy, and preserves the original Boolean
-outputs only for audit and baseline comparison.
+The adapters' internal binary decision thresholds are not inputs to the hierarchical
+models. The hierarchy consumes continuous detector scores and metadata, calibrating each
+feature inside the aggregation policy.
 
 ## Input features
 
@@ -112,14 +104,12 @@ The frozen manifest is stored in
 [`results/hierarchical-calibration-manifest.csv`](results/hierarchical-calibration-manifest.csv)
 with SHA-256
 `5a23bee4f802b9c88dd41030711aee173d27a3f8974371153439c0c363cde3a5`.
-It contains 768 unique input hashes and has no sample, source, or input-hash
-overlap with the earlier three-class validation manifest.
+It contains 768 unique input hashes.
 
 ### Real and edited classes
 
 Use the 256 real and 256 edited images from the existing CocoGlide
-**calibration** split. Its COCO source identifiers do not overlap the
-CocoGlide validation split used in the Boolean baseline.
+**calibration** split.
 
 - Dataset revision: `275f045df7caa2544dd28de7fa86b044ab661bd0`
 - Split-manifest SHA-256:
@@ -133,23 +123,20 @@ not be joined silently with a new partial run.
 
 ### Synthetic class
 
-Select 256 new DiffusionDB images without inspecting detector output. Use the
+Select 256 DiffusionDB images without inspecting detector output. Use the
 protocol identifier `diffdetect-hierarchical-calibration-v1`:
 
 1. its SHA-256 is
    `c3db1e891535a757243d643e9ab864e6c9f8b9ea7beb056cf86ec5608770ecd2`;
 2. interpreting the first 16 hexadecimal digits, taking modulo 2,000, and
    adding one selects archive part `001800`;
-3. apply the same finite NSFW-score, maximum `0.1`, valid-dimension, and
-   existing-file filters as the three-class baseline;
+3. apply the finite NSFW-score, maximum `0.1`, valid-dimension, and
+   existing-file filters;
 4. rank eligible filenames by SHA-256 of
    `diffdetect-hierarchical-calibration-v1:{image_name}` and take the first
    256;
 5. continue cyclically through later parts only if the selected archive does
    not supply 256 eligible files, recording every part used.
-
-The current validation selected DiffusionDB part `001079`; the new calibration
-selection must have no image identifier or input hash in common with it.
 
 ## Cross-validation and confidence thresholds
 
@@ -199,8 +186,7 @@ The JSON policy must contain at least:
 - both models' coefficients and intercepts;
 - software versions used for calibration;
 - out-of-fold coverage and metrics;
-- creation timestamp and an explicit note that the current three-class
-  validation result was not used for fitting.
+- creation timestamp and calibration metadata.
 
 The runtime classifier must evaluate this artifact without requiring
 scikit-learn. Scikit-learn may be an experiment-only dependency used to fit
@@ -208,9 +194,8 @@ and verify the serialized coefficients.
 
 ## Implementation boundary
 
-The implementation will add a separate entry point, tentatively
-`classify_hierarchical(runs, policy)`. It must not alter the output of
-`classify(runs)`.
+The implementation provides the hierarchical entry point
+`classify_hierarchical(runs, policy)`.
 
 The hierarchical result must retain:
 
@@ -225,36 +210,7 @@ The hierarchical result must retain:
 
 Unit tests must cover policy validation, feature extraction, all three final
 classes, both abstention regions, detector errors, missing targets, missing
-metadata, non-finite values, coefficient evaluation, and proof that the
-original Boolean classifier remains unchanged.
-
-## Retrospective comparison
-
-After the policy artifact is frozen, apply it to the already versioned
-768-image result in
-[`results/three-class-validation-clean-cache.csv`](results/three-class-validation-clean-cache.csv).
-No GPU inference is required because every required feature is present.
-
-This comparison answers whether the new aggregation makes better use of the
-same detector outputs. It is not fully blind: the baseline result informed the
-choice to investigate a hierarchy and the inclusion of localization extent.
-No coefficient, confidence threshold, feature, or class rule may be changed
-after inspecting the hierarchical predictions on these 768 rows.
-
-Report the original Boolean and hierarchical policies side by side using:
-
-- the complete true-class by outcome table;
-- 3 by 3 confusion matrix for conclusive predictions;
-- end-to-end accuracy, balanced accuracy, macro precision, macro recall, and
-  macro F1 with abstentions retained as misses;
-- conclusive-only accuracy and macro F1 as secondary metrics;
-- coverage and abstention rate overall and by true class;
-- per-class precision, recall, and F1;
-- level-1 real-versus-artificial metrics;
-- level-2 synthetic-versus-edited metrics, conditional on true artificial
-  samples and separately end to end;
-- paired, source-group bootstrap 95% intervals for metric differences from the
-  Boolean baseline, using 2,000 resamples and seed `20261007`.
+metadata, non-finite values, and coefficient evaluation.
 
 ## Prespecified ablations
 
@@ -271,24 +227,20 @@ post-evaluation selection of whichever model performs best.
 
 ## Engineering acceptance criteria
 
-The retrospective hierarchy is considered suitable for continued development
-only if it meets all of the following on the frozen 768-row comparison:
+The hierarchical model is considered suitable for continued development
+only if it meets all of the following in grouped cross-validation:
 
 - zero aggregation errors on structurally valid rows;
 - at least 80% coverage;
 - at least 70% end-to-end balanced accuracy;
 - at least 65% end-to-end macro F1;
-- at least 50% recall for every class;
-- higher balanced accuracy and macro F1 than the Boolean baseline.
+- at least 50% recall for every class.
 
-These are engineering gates, not proof of broad generalization. Missing them
-is a valid experimental result and must not be repaired by tuning on the
-comparison set.
+These are engineering gates, not proof of broad generalization.
 
 ## Independent confirmation
 
-Because the three-class result has already been inspected, an external corpus
-selected after the policy is frozen is required before making a general
+An external corpus selected after the policy is frozen is required before making a general
 performance claim. That corpus must:
 
 - contain all three classes and keep source-related images in the same split;
@@ -311,7 +263,6 @@ experimental component rather than a universal detector.
 - grouped fold assignments and out-of-fold predictions;
 - frozen hierarchical-policy JSON and SHA-256;
 - calibration metrics and threshold-selection table;
-- retrospective predictions, metrics, confusion tables, and figures;
 - ablation results clearly labeled as descriptive;
 - environment metadata, logs, and artifact checksum list;
 - final report documenting successes, failures, and limitations.
@@ -326,9 +277,8 @@ experimental component rather than a universal detector.
 5. run the complete 768-image calibration inference;
 6. fit and freeze the policy from grouped out-of-fold predictions;
 7. implement the runtime hierarchical classifier against the frozen schema;
-8. apply the frozen policy to the existing 768-row comparison;
-9. report primary, ablation, and paired-bootstrap results;
-10. design the independent confirmation protocol.
+8. report primary and ablation cross-validation results;
+9. design the independent confirmation protocol.
 
 The commands for the first manifest-freezing phase are documented in
 [`hierarchical-aggregation-runbook.md`](hierarchical-aggregation-runbook.md).

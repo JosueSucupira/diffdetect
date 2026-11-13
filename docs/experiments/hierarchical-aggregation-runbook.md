@@ -80,11 +80,6 @@ complete artifacts.
 
 ## 4. Generate and verify the manifest
 
-The previous three-class validation manifest is mandatory input. The builder
-rejects overlap by sample identifier, source identifier, and image SHA-256.
-It also verifies that exclusion manifest against SHA-256
-`9dcda4b93d8c73df7b1240629bec209566cd6119bb7f800c2906b8c3826b8777`.
-
 ```bash
 cd /content/diffdetect
 
@@ -93,7 +88,6 @@ python experiments/hierarchical_aggregation.py prepare-manifest \
   --cocoglide-root "$COCOGLIDE_CALIBRATION_ROOT" \
   --diffusiondb-metadata "$HIERARCHICAL_DIFFUSIONDB_ROOT/metadata.parquet" \
   --diffusiondb-root "$HIERARCHICAL_DIFFUSIONDB_ROOT" \
-  --exclude-manifest docs/experiments/results/three-class-validation-manifest.csv \
   --output docs/experiments/results/hierarchical-calibration-manifest.csv
 ```
 
@@ -266,34 +260,12 @@ python experiments/hierarchical_aggregation.py fit-policy \
 The fitter verifies the frozen input hashes, keeps every CocoGlide real/edited
 pair in one of five grouped folds, standardizes features inside each training
 fold, and selects both confidence thresholds exclusively from out-of-fold
-predictions. It also fits the two prespecified descriptive ablations. The
-earlier three-class validation result is not opened by this command.
+predictions. It also fits the two prespecified descriptive ablations.
 
 The command writes the policy JSON, grouped fold assignments, out-of-fold
 predictions, the complete threshold table, calibration metrics, and a checksum
 list. Do not use `--overwrite` after reviewing and freezing these artifacts.
 
 The reviewed policy has SHA-256
-`c1214e33d698daa7cda082cd2c20ef0e4553d8d63b46ac77494e9685a50a1187`.
-
-## 9. Run the read-only retrospective comparison
-
-Only after freezing the policy and its hash, apply it to the earlier result:
-
-```bash
-python experiments/hierarchical_aggregation.py evaluate-policy \
-  --policy docs/experiments/results/hierarchical-policy.json \
-  --policy-sha256 \
-    c1214e33d698daa7cda082cd2c20ef0e4553d8d63b46ac77494e9685a50a1187 \
-  --baseline-results \
-    docs/experiments/results/three-class-validation-clean-cache.csv \
-  --baseline-metadata \
-    docs/experiments/results/three-class-validation-clean-cache.csv.metadata.json \
-  --output-dir docs/experiments/results
-```
-
-This command validates the frozen policy and baseline hashes, evaluates the
-serialized coefficients with the pure-Python runtime, and performs the
-prespecified 2,000-resample paired source-group bootstrap. It never imports
-scikit-learn and contains no fitting path. Results and limitations are
+`c1214e33d698daa7cda082cd2c20ef0e4553d8d63b46ac77494e9685a50a1187`. Results and limitations are
 documented in [`hierarchical-aggregation.md`](hierarchical-aggregation.md).

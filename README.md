@@ -12,12 +12,10 @@ or `edited`.
 The hierarchical aggregation policy was evaluated in a prospective external confirmation
 experiment on 384 blind images across diffusion generators (GenImage VQDM/Wukong, Synthbuster
 Midjourney v5/Stable Diffusion XL, MagicBrush DALL-E 2, AbstractEdit Flux-Kontext, Open Images V6,
-and RAISE-1k). It resolved the Boolean baseline aggregation failure, raising coverage from
-45.83% to 95.31% (with 0 conflicts, 86.72% real recall, 75.78% synthetic recall, and 76.04% balanced
-accuracy), passing all confirmation criteria. Complete results, bootstrap confidence intervals,
-and generator analyses are recorded in
-[`docs/experiments/diffusion-only-external-results-v2.md`](docs/experiments/diffusion-only-external-results-v2.md)
-(and the broader exploratory evaluation in [`docs/experiments/hierarchical-external-confirmation.md`](docs/experiments/hierarchical-external-confirmation.md)).
+and RAISE-1k). Evaluated under the joint Bayes decision rule, it achieves 100% coverage (0 abstentions/conflicts),
+94.53% real recall, 75.78% synthetic recall, 66.41% edited recall, and 78.91% balanced accuracy, passing all
+acceptance criteria. Complete results, bootstrap confidence intervals, and generator analyses are recorded in
+[`docs/experiments/diffusion-only-external-results-v2-joint.md`](docs/experiments/diffusion-only-external-results-v2-joint.md).
 
 ## Quickstart
 
@@ -133,26 +131,17 @@ When `selected` is omitted, all loaded detectors run in their construction
 order. A detector failure is recorded and does not prevent the others from
 running. An unreadable input image raises an error before execution.
 
-The `classify` function combines the individual runs into `real`, `synthetic`,
-or `edited` when both targets were evaluated successfully:
+The `classify_hierarchical` function combines the detector runs into `real`,
+`synthetic`, or `edited` using the learned hierarchical policy:
 
 ```python
-from diffdetect import classify
+from diffdetect import classify_hierarchical, load_default_hierarchical_policy
 
-decision = classify(runs)
+policy = load_default_hierarchical_policy()
+decision = classify_hierarchical(runs, policy, decision_rule="joint")
 print(decision.label, decision.reason)
+print(decision.p_real, decision.p_synthetic, decision.p_edited)
 ```
-
-With only the synthetic detector from the example above, this decision is
-inconclusive because the edited target has not been checked.
-
-Within each target, any positive detector supplies evidence for that target.
-Evidence for both `synthetic` and `edited` is a conflict. A detector error or
-missing target also prevents a three-class decision. In those cases,
-`decision.label` is `None` and `decision.reason` explains why; `None` is an
-inconclusive status, not a fourth class. A `real` label means that the included
-detectors found no evidence for either target, not that authenticity was proven.
-The decision rule does not compare raw scores from different detectors.
 
 ## DistilDIRE adapter
 
@@ -283,11 +272,10 @@ tests with `PYTHONPATH=src python -m unittest discover -s tests -v`.
 
 ## Learned hierarchical aggregation
 
-The Boolean `classify` function remains unchanged. A separately frozen policy
-can combine the DistilDIRE score, DinoLizer p99 score, and DinoLizer marked
+A frozen policy combines the DistilDIRE score, DinoLizer p99 score, and DinoLizer marked
 area through two regularized logistic models: real versus artificial first,
-then synthetic versus edited. Runtime evaluation is pure Python and can
-abstain independently at either level:
+then synthetic versus edited. Runtime evaluation is pure Python and supports
+both cascaded and joint Bayes decision rules:
 
 ```python
 from diffdetect import classify_hierarchical, load_hierarchical_policy
@@ -303,7 +291,7 @@ Policy fitting is an offline experiment and requires
 `python -m pip install -e '.[experiments]'`. The frozen calibration protocol,
 grouped cross-validation rules, and commands are documented in
 [`docs/experiments/hierarchical-aggregation-runbook.md`](docs/experiments/hierarchical-aggregation-runbook.md).
-The resulting metrics, ablations, retrospective comparison, and limitations
+The resulting metrics, ablations, and limitations
 are reported in
 [`docs/experiments/hierarchical-aggregation.md`](docs/experiments/hierarchical-aggregation.md).
 

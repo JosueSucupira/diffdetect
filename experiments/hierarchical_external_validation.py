@@ -134,6 +134,10 @@ PREDICTION_FIELDS = (
     "hierarchical_inconclusive",
     "p_artificial",
     "p_synthetic_given_artificial",
+    "p_real",
+    "p_synthetic",
+    "p_edited",
+    "decision_rule",
     "level1_threshold",
     "level2_threshold",
     "policy_sha256",
@@ -550,6 +554,7 @@ def evaluate_external(
     metadata_path: str | Path,
     output_dir: str | Path,
     bootstrap_resamples: int = BOOTSTRAP_RESAMPLES,
+    decision_rule: str = "cascade",
 ) -> dict[str, object]:
     """Apply the frozen hierarchy to external evidence without fitting."""
 
@@ -586,7 +591,9 @@ def evaluate_external(
     prediction_rows = []
     for row in rows:
         record = by_sample[row["sample_id"]]
-        decision = classify_hierarchical(_runs_from_row(row), policy)
+        decision = classify_hierarchical(
+            _runs_from_row(row), policy, decision_rule=decision_rule
+        )
         label = decision.label.value if decision.label is not None else None
         decisions.append(decision)
         predictions.append(label)
@@ -610,6 +617,10 @@ def evaluate_external(
                 "p_synthetic_given_artificial": _optional(
                     decision.p_synthetic_given_artificial
                 ),
+                "p_real": _optional(decision.p_real),
+                "p_synthetic": _optional(decision.p_synthetic),
+                "p_edited": _optional(decision.p_edited),
+                "decision_rule": decision.decision_rule,
                 "level1_threshold": decision.level1_threshold,
                 "level2_threshold": decision.level2_threshold,
                 "policy_sha256": decision.policy_sha256,
@@ -643,12 +654,24 @@ def evaluate_external(
     metrics_path = output_dir / "hierarchical-external-metrics.json"
     checksums_path = output_dir / "hierarchical-external-artifacts.sha256"
     _write_csv(predictions_path, PREDICTION_FIELDS, prediction_rows)
+    confusion_columns = (
+        ("true_class", *TRUE_CLASSES)
+        if decision_rule == "joint"
+        else ("true_class", *TRUE_CLASSES, "inconclusive")
+    )
     confusion_rows = [
-        {"true_class": name, **metrics["outcome_table"][name]}
+        {
+            col: (
+                name
+                if col == "true_class"
+                else metrics["outcome_table"][name].get(col, 0)
+            )
+            for col in confusion_columns
+        }
         for name in TRUE_CLASSES
     ]
-    _write_csv(confusion_path, ("true_class", *TRUE_CLASSES, "inconclusive"), confusion_rows)
-    _draw_confusion(confusion_png, confusion_rows)
+    _write_csv(confusion_path, confusion_columns, confusion_rows)
+    _draw_confusion(confusion_png, confusion_rows, fields=confusion_columns[1:])
     report = {
         "schema_version": "diffdetect-hierarchical-external-metrics-v1",
         "created_utc": datetime.now(timezone.utc).isoformat(),
@@ -658,6 +681,7 @@ def evaluate_external(
             "results_sha256": results_sha256,
             "metadata_sha256": file_digest(metadata_path),
             "policy_sha256": expected_policy_sha256,
+            "decision_rule": decision_rule,
             "fitting_performed": False,
             "threshold_selection_performed": False,
         },
@@ -904,8 +928,9 @@ def _existing_sample_ids(output, manifest_sha256):
     return set(sample_ids)
 
 
-def _draw_confusion(path, rows):
-    fields = (*TRUE_CLASSES, "inconclusive")
+def _draw_confusion(path, rows, fields=None):
+    if fields is None:
+        fields = (*TRUE_CLASSES, "inconclusive")
     cell_width, cell_height, label_width = 125, 44, 155
     width = label_width + len(fields) * cell_width + 20
     height = 75 + (len(TRUE_CLASSES) + 1) * cell_height
@@ -967,6 +992,7 @@ def _evaluate_command(args):
         results_path=args.results,
         metadata_path=args.results_metadata,
         output_dir=args.output_dir,
+        decision_rule=args.decision_rule,
     )
     end = report["hierarchical"]["end_to_end"]
     print(f"coverage: {end['coverage']:.6f}")
@@ -1008,6 +1034,7 @@ def _parser():
     evaluate.add_argument("--results", required=True, type=Path)
     evaluate.add_argument("--results-metadata", required=True, type=Path)
     evaluate.add_argument("--output-dir", required=True, type=Path)
+    evaluate.add_argument("--decision-rule", choices=["cascade", "joint"], default="cascade")
     evaluate.add_argument("--overwrite", action="store_true")
     evaluate.set_defaults(handler=_evaluate_command)
     return parser

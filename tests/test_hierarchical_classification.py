@@ -169,6 +169,27 @@ class HierarchicalClassificationTests(unittest.TestCase):
         self.assertIsNone(boolean.label)
         self.assertEqual(boolean.reason, DecisionReason.CONFLICTING_EVIDENCE)
 
+    def test_joint_decision_rule_eliminates_inconclusive_and_computes_joint_probabilities(self):
+        # Case that was inconclusive under cascade (0.5, 0.5, 0.5)
+        cascade_decision = classify_hierarchical(runs(0.5, 0.5, 0.5), policy())
+        self.assertIsNone(cascade_decision.label)
+        self.assertTrue(cascade_decision.inconclusive)
+
+        joint_decision = classify_hierarchical(
+            runs(0.5, 0.5, 0.5), policy(), decision_rule="joint"
+        )
+        self.assertIsNotNone(joint_decision.label)
+        self.assertFalse(joint_decision.inconclusive)
+        self.assertEqual(joint_decision.decision_rule, "joint")
+        self.assertIsNotNone(joint_decision.p_real)
+        self.assertIsNotNone(joint_decision.p_synthetic)
+        self.assertIsNotNone(joint_decision.p_edited)
+        self.assertAlmostEqual(
+            joint_decision.p_real + joint_decision.p_synthetic + joint_decision.p_edited,
+            1.0,
+            places=5,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -58,6 +58,7 @@ class HierarchicalPolicy:
     level1_threshold: float
     level2_threshold: float
     artifact_sha256: str
+    decision_rule: str = "cascade"
 
     def __post_init__(self) -> None:
         if not self.policy_version:
@@ -87,6 +88,8 @@ class HierarchicalPolicy:
             if not 0.5 <= threshold < 1.0:
                 raise ValueError(f"{name} must be in [0.5, 1.0)")
         _validate_sha256(self.artifact_sha256, "artifact_sha256")
+        if self.decision_rule not in ("cascade", "joint"):
+            raise ValueError("decision_rule must be 'cascade' or 'joint'")
 
     @classmethod
     def from_mapping(
@@ -142,6 +145,10 @@ class HierarchicalPolicy:
                     "confidence_thresholds.level2",
                 ),
                 artifact_sha256=artifact_sha256,
+                decision_rule=_text(
+                    payload.get("decision_rule", "cascade"),
+                    "decision_rule",
+                ),
             )
         except KeyError as exc:
             raise ValueError(f"policy is missing field: {exc.args[0]}") from exc
@@ -161,6 +168,10 @@ class HierarchicalClassificationResult:
     p_synthetic_given_artificial: float | None
     level1_threshold: float
     level2_threshold: float
+    p_real: float | None = None
+    p_synthetic: float | None = None
+    p_edited: float | None = None
+    decision_rule: str = "cascade"
 
     @property
     def inconclusive(self) -> bool:
@@ -199,11 +210,16 @@ def load_default_hierarchical_policy() -> HierarchicalPolicy:
 def classify_hierarchical(
     runs: Iterable[DetectorRun],
     policy: HierarchicalPolicy,
+    *,
+    decision_rule: str | None = None,
 ) -> HierarchicalClassificationResult:
     """Apply the frozen two-level policy without importing scikit-learn."""
 
     if not isinstance(policy, HierarchicalPolicy):
         raise TypeError("policy must be a HierarchicalPolicy")
+    active_rule = decision_rule if decision_rule is not None else policy.decision_rule
+    if active_rule not in ("cascade", "joint"):
+        raise ValueError("decision_rule must be 'cascade' or 'joint'")
     records = tuple(runs)
     if any(not isinstance(run, DetectorRun) for run in records):
         raise TypeError("runs must contain only DetectorRun values")
@@ -215,6 +231,9 @@ def classify_hierarchical(
         features: tuple[tuple[str, float], ...] = (),
         p_artificial: float | None = None,
         p_level2: float | None = None,
+        p_real: float | None = None,
+        p_synthetic: float | None = None,
+        p_edited: float | None = None,
     ) -> HierarchicalClassificationResult:
         return HierarchicalClassificationResult(
             label=label,
@@ -227,6 +246,10 @@ def classify_hierarchical(
             p_synthetic_given_artificial=p_level2,
             level1_threshold=policy.level1_threshold,
             level2_threshold=policy.level2_threshold,
+            p_real=p_real,
+            p_synthetic=p_synthetic,
+            p_edited=p_edited,
+            decision_rule=active_rule,
         )
 
     if any(run.error is not None for run in records):
@@ -269,13 +292,58 @@ def classify_hierarchical(
     )
     standardized_features = tuple(zip(policy.feature_names, standardized_values))
     p_artificial = _logistic_probability(policy.level1, standardized_values)
+    p_level2 = _logistic_probability(policy.level2, standardized_values)
 
+    p_real = 1.0 - p_artificial
+    p_synthetic = p_artificial * p_level2
+    p_edited = p_artificial * (1.0 - p_level2)
+
+    if active_rule == "joint":
+        if p_real >= p_synthetic and p_real >= p_edited:
+            return result(
+                ImageClass.REAL,
+                HierarchicalDecisionReason.LEVEL1_REAL,
+                features=standardized_features,
+                p_artificial=p_artificial,
+                p_level2=p_level2,
+                p_real=p_real,
+                p_synthetic=p_synthetic,
+                p_edited=p_edited,
+            )
+        elif p_synthetic >= p_edited:
+            return result(
+                ImageClass.SYNTHETIC,
+                HierarchicalDecisionReason.LEVEL2_SYNTHETIC,
+                features=standardized_features,
+                p_artificial=p_artificial,
+                p_level2=p_level2,
+                p_real=p_real,
+                p_synthetic=p_synthetic,
+                p_edited=p_edited,
+            )
+        else:
+            return result(
+                ImageClass.EDITED,
+                HierarchicalDecisionReason.LEVEL2_EDITED,
+                features=standardized_features,
+                p_artificial=p_artificial,
+                p_level2=p_level2,
+                p_real=p_real,
+                p_synthetic=p_synthetic,
+                p_edited=p_edited,
+            )
+
+    # active_rule == "cascade"
     if p_artificial <= 1.0 - policy.level1_threshold:
         return result(
             ImageClass.REAL,
             HierarchicalDecisionReason.LEVEL1_REAL,
             features=standardized_features,
             p_artificial=p_artificial,
+            p_level2=p_level2,
+            p_real=p_real,
+            p_synthetic=p_synthetic,
+            p_edited=p_edited,
         )
     if p_artificial < policy.level1_threshold:
         return result(
@@ -283,9 +351,12 @@ def classify_hierarchical(
             HierarchicalDecisionReason.LEVEL1_INCONCLUSIVE,
             features=standardized_features,
             p_artificial=p_artificial,
+            p_level2=p_level2,
+            p_real=p_real,
+            p_synthetic=p_synthetic,
+            p_edited=p_edited,
         )
 
-    p_level2 = _logistic_probability(policy.level2, standardized_values)
     if p_level2 <= 1.0 - policy.level2_threshold:
         return result(
             ImageClass.EDITED,
@@ -293,6 +364,9 @@ def classify_hierarchical(
             features=standardized_features,
             p_artificial=p_artificial,
             p_level2=p_level2,
+            p_real=p_real,
+            p_synthetic=p_synthetic,
+            p_edited=p_edited,
         )
     if p_level2 >= policy.level2_threshold:
         return result(
@@ -301,6 +375,9 @@ def classify_hierarchical(
             features=standardized_features,
             p_artificial=p_artificial,
             p_level2=p_level2,
+            p_real=p_real,
+            p_synthetic=p_synthetic,
+            p_edited=p_edited,
         )
     return result(
         None,
@@ -308,6 +385,9 @@ def classify_hierarchical(
         features=standardized_features,
         p_artificial=p_artificial,
         p_level2=p_level2,
+        p_real=p_real,
+        p_synthetic=p_synthetic,
+        p_edited=p_edited,
     )
 
 

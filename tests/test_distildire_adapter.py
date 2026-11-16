@@ -32,8 +32,8 @@ class DistilDIREAdapterTests(unittest.TestCase):
 
     def test_score_below_threshold_is_not_synthetic_evidence(self):
         detector = DistilDIREDetector(
-            threshold=0.987782,
-            runtime=RecordingRuntime(0.91),
+            threshold=0.5,
+            runtime=RecordingRuntime(0.4),
         )
 
         result = detector.predict(Image.new("RGB", (4, 4)))

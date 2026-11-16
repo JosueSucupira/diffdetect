@@ -76,6 +76,9 @@ class PipelineTests(unittest.TestCase):
         self.assertTrue(result.detected)
         self.assertEqual(result.score, 0.95)
 
+        default_detector = create_detector("distildire", runtime=mock_runtime)
+        self.assertEqual(default_detector.threshold, 0.5)
+
         mock_dino_runtime = MagicMock()
         mock_dino_runtime.infer.return_value = DinoLizerInference(
             score=0.8,

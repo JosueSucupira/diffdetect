@@ -1178,59 +1178,6 @@ def _fit_policy_command(args: argparse.Namespace) -> None:
     print(f"out-of-fold macro F1: {end_to_end['macro_f1']:.6f}")
 
 
-def _evaluate_policy_command(args: argparse.Namespace) -> None:
-    """Apply a frozen policy to the earlier result without refitting it."""
-
-    if __package__:
-        from experiments.hierarchical_retrospective import evaluate_retrospective
-    else:
-        from hierarchical_retrospective import evaluate_retrospective
-
-    output_dir = Path(args.output_dir)
-    expected_outputs = (
-        output_dir / "hierarchical-retrospective-predictions.csv",
-        output_dir / "hierarchical-retrospective-outcomes.csv",
-        output_dir / "hierarchical-retrospective-confusion.csv",
-        output_dir / "hierarchical-retrospective-outcomes.png",
-        output_dir / "hierarchical-retrospective-confusion.png",
-        output_dir / "hierarchical-retrospective-metrics.json",
-        output_dir / "hierarchical-retrospective-artifacts.sha256",
-    )
-    existing = [path for path in expected_outputs if path.exists()]
-    if existing and not args.overwrite:
-        raise FileExistsError(
-            "retrospective artifacts already exist; use --overwrite to replace them: "
-            + ", ".join(str(path) for path in existing)
-        )
-
-    metrics = evaluate_retrospective(
-        policy_path=args.policy,
-        expected_policy_sha256=args.policy_sha256,
-        baseline_results_path=args.baseline_results,
-        baseline_metadata_path=args.baseline_metadata,
-        output_dir=output_dir,
-    )
-    baseline = metrics["boolean_baseline"]["end_to_end"]
-    hierarchical = metrics["hierarchical"]["end_to_end"]
-    print(f"policy SHA-256: {args.policy_sha256}")
-    print(
-        "boolean baseline: "
-        f"coverage={baseline['coverage']:.6f}, "
-        f"balanced_accuracy={baseline['balanced_accuracy']:.6f}, "
-        f"macro_f1={baseline['macro_f1']:.6f}"
-    )
-    print(
-        "hierarchical policy: "
-        f"coverage={hierarchical['coverage']:.6f}, "
-        f"balanced_accuracy={hierarchical['balanced_accuracy']:.6f}, "
-        f"macro_f1={hierarchical['macro_f1']:.6f}"
-    )
-    print(
-        "all engineering gates passed: "
-        f"{metrics['engineering_acceptance']['all_engineering_gates_passed']}"
-    )
-
-
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
@@ -1275,18 +1222,6 @@ def _parser() -> argparse.ArgumentParser:
     fit.add_argument("--output-dir", required=True, type=Path)
     fit.add_argument("--overwrite", action="store_true")
     fit.set_defaults(handler=_fit_policy_command)
-
-    evaluate = commands.add_parser(
-        "evaluate-policy",
-        help="apply a frozen hierarchy to the earlier three-class result",
-    )
-    evaluate.add_argument("--policy", required=True, type=Path)
-    evaluate.add_argument("--policy-sha256", required=True)
-    evaluate.add_argument("--baseline-results", required=True, type=Path)
-    evaluate.add_argument("--baseline-metadata", required=True, type=Path)
-    evaluate.add_argument("--output-dir", required=True, type=Path)
-    evaluate.add_argument("--overwrite", action="store_true")
-    evaluate.set_defaults(handler=_evaluate_policy_command)
     return parser
 
 

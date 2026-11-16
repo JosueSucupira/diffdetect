@@ -27,8 +27,7 @@ class DistilDIREDetector(BaseDetector):
 
     The official DistilDIRE repository is loaded at runtime and remains an
     external dependency. Model weights are never downloaded by this adapter.
-    A threshold is required because the official 0.5 threshold did not
-    generalize to the validation images used by this project.
+    The official decision threshold is 0.5 (Lim et al., ICML 2024).
     """
 
     name = "distildire"

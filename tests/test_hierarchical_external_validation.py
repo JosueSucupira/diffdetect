@@ -103,6 +103,24 @@ class HierarchicalExternalValidationTests(unittest.TestCase):
             self.assertTrue((output / "hierarchical-external-confusion.png").is_file())
             self.assertNotIn("fit", external._parser()._subparsers._group_actions[0].choices)
 
+            # Also evaluate with joint Bayes decision rule
+            joint_output = root / "joint_outputs"
+            joint_report = external.evaluate_external(
+                policy_path=POLICY,
+                expected_policy_sha256=external.EXPECTED_POLICY_SHA256,
+                manifest_path=manifest,
+                results_path=raw,
+                metadata_path=metadata,
+                output_dir=joint_output,
+                bootstrap_resamples=10,
+                decision_rule="joint",
+            )
+            self.assertEqual(joint_report["source"]["decision_rule"], "joint")
+            self.assertEqual(joint_report["hierarchical"]["end_to_end"]["coverage"], 1.0)
+            self.assertEqual(joint_report["hierarchical"]["end_to_end"]["abstention_rate"], 0.0)
+            self.assertTrue((joint_output / "hierarchical-external-predictions.csv").is_file())
+            self.assertTrue((joint_output / "hierarchical-external-confusion.png").is_file())
+
     def test_rejects_any_policy_hash_other_than_frozen_artifact(self):
         with self.assertRaisesRegex(ValueError, "preregistered frozen policy"):
             external.evaluate_external(

@@ -24,6 +24,8 @@ from time import perf_counter
 from PIL import Image, ImageDraw
 
 from diffdetect import (
+    DetectionResult,
+    DetectionTarget,
     DinoLizerDetector,
     DistilDIREDetector,
     DetectorRun,
@@ -46,11 +48,6 @@ if __package__:
         calibration_result_row,
         file_digest,
     )
-    from experiments.hierarchical_retrospective import (
-        _coverage_by_class,
-        _runs_from_row,
-        _stage_metrics,
-    )
     from experiments.hierarchical_training import TRUE_CLASSES, multiclass_metrics
 else:
     from hierarchical_aggregation import (  # type: ignore[no-redef]
@@ -65,11 +62,6 @@ else:
         _write_json,
         calibration_result_row,
         file_digest,
-    )
-    from hierarchical_retrospective import (  # type: ignore[no-redef]
-        _coverage_by_class,
-        _runs_from_row,
-        _stage_metrics,
     )
     from hierarchical_training import TRUE_CLASSES, multiclass_metrics
 
@@ -134,6 +126,10 @@ PREDICTION_FIELDS = (
     "hierarchical_inconclusive",
     "p_artificial",
     "p_synthetic_given_artificial",
+    "p_real",
+    "p_synthetic",
+    "p_edited",
+    "decision_rule",
     "level1_threshold",
     "level2_threshold",
     "policy_sha256",
@@ -550,6 +546,7 @@ def evaluate_external(
     metadata_path: str | Path,
     output_dir: str | Path,
     bootstrap_resamples: int = BOOTSTRAP_RESAMPLES,
+    decision_rule: str = "cascade",
 ) -> dict[str, object]:
     """Apply the frozen hierarchy to external evidence without fitting."""
 
@@ -586,7 +583,9 @@ def evaluate_external(
     prediction_rows = []
     for row in rows:
         record = by_sample[row["sample_id"]]
-        decision = classify_hierarchical(_runs_from_row(row), policy)
+        decision = classify_hierarchical(
+            _runs_from_row(row), policy, decision_rule=decision_rule
+        )
         label = decision.label.value if decision.label is not None else None
         decisions.append(decision)
         predictions.append(label)
@@ -610,6 +609,10 @@ def evaluate_external(
                 "p_synthetic_given_artificial": _optional(
                     decision.p_synthetic_given_artificial
                 ),
+                "p_real": _optional(decision.p_real),
+                "p_synthetic": _optional(decision.p_synthetic),
+                "p_edited": _optional(decision.p_edited),
+                "decision_rule": decision.decision_rule,
                 "level1_threshold": decision.level1_threshold,
                 "level2_threshold": decision.level2_threshold,
                 "policy_sha256": decision.policy_sha256,
@@ -643,12 +646,24 @@ def evaluate_external(
     metrics_path = output_dir / "hierarchical-external-metrics.json"
     checksums_path = output_dir / "hierarchical-external-artifacts.sha256"
     _write_csv(predictions_path, PREDICTION_FIELDS, prediction_rows)
+    confusion_columns = (
+        ("true_class", *TRUE_CLASSES)
+        if decision_rule == "joint"
+        else ("true_class", *TRUE_CLASSES, "inconclusive")
+    )
     confusion_rows = [
-        {"true_class": name, **metrics["outcome_table"][name]}
+        {
+            col: (
+                name
+                if col == "true_class"
+                else metrics["outcome_table"][name].get(col, 0)
+            )
+            for col in confusion_columns
+        }
         for name in TRUE_CLASSES
     ]
-    _write_csv(confusion_path, ("true_class", *TRUE_CLASSES, "inconclusive"), confusion_rows)
-    _draw_confusion(confusion_png, confusion_rows)
+    _write_csv(confusion_path, confusion_columns, confusion_rows)
+    _draw_confusion(confusion_png, confusion_rows, fields=confusion_columns[1:])
     report = {
         "schema_version": "diffdetect-hierarchical-external-metrics-v1",
         "created_utc": datetime.now(timezone.utc).isoformat(),
@@ -658,6 +673,7 @@ def evaluate_external(
             "results_sha256": results_sha256,
             "metadata_sha256": file_digest(metadata_path),
             "policy_sha256": expected_policy_sha256,
+            "decision_rule": decision_rule,
             "fitting_performed": False,
             "threshold_selection_performed": False,
         },
@@ -904,8 +920,9 @@ def _existing_sample_ids(output, manifest_sha256):
     return set(sample_ids)
 
 
-def _draw_confusion(path, rows):
-    fields = (*TRUE_CLASSES, "inconclusive")
+def _draw_confusion(path, rows, fields=None):
+    if fields is None:
+        fields = (*TRUE_CLASSES, "inconclusive")
     cell_width, cell_height, label_width = 125, 44, 155
     width = label_width + len(fields) * cell_width + 20
     height = 75 + (len(TRUE_CLASSES) + 1) * cell_height
@@ -967,6 +984,7 @@ def _evaluate_command(args):
         results_path=args.results,
         metadata_path=args.results_metadata,
         output_dir=args.output_dir,
+        decision_rule=args.decision_rule,
     )
     end = report["hierarchical"]["end_to_end"]
     print(f"coverage: {end['coverage']:.6f}")
@@ -1008,6 +1026,7 @@ def _parser():
     evaluate.add_argument("--results", required=True, type=Path)
     evaluate.add_argument("--results-metadata", required=True, type=Path)
     evaluate.add_argument("--output-dir", required=True, type=Path)
+    evaluate.add_argument("--decision-rule", choices=["cascade", "joint"], default="cascade")
     evaluate.add_argument("--overwrite", action="store_true")
     evaluate.set_defaults(handler=_evaluate_command)
     return parser
@@ -1028,6 +1047,146 @@ def _validate_relative_path(value):
         or "." in path.parts
     ):
         raise ValueError(f"path must be a normalized relative path: {value}")
+
+
+def _boolean(value: str) -> bool:
+    normalized = value.strip().lower()
+    if normalized == "true":
+        return True
+    if normalized == "false":
+        return False
+    raise ValueError(f"invalid boolean value: {value}")
+
+
+def _runs_from_row(row: Mapping[str, str]) -> tuple[DetectorRun, DetectorRun]:
+    distildire = DetectorRun(
+        name="distildire",
+        target=DetectionTarget.SYNTHETIC,
+        duration_seconds=float(row["distildire_duration_seconds"]),
+        result=DetectionResult(
+            detected=_boolean(row["distildire_detected"]),
+            score=_bounded_float(row["distildire_score"]),
+            threshold=_bounded_float(row["distildire_threshold"]),
+        ),
+    )
+    dinolizer = DetectorRun(
+        name="dinolizer",
+        target=DetectionTarget.EDITED,
+        duration_seconds=float(row["dinolizer_duration_seconds"]),
+        result=DetectionResult(
+            detected=_boolean(row["dinolizer_detected"]),
+            score=_bounded_float(row["dinolizer_score"]),
+            threshold=_bounded_float(row["dinolizer_threshold"]),
+            metadata={"marked_area": _bounded_float(row["dinolizer_marked_area"])},
+        ),
+    )
+    return distildire, dinolizer
+
+
+def _coverage_by_class(truth, predictions):
+    result = {}
+    for target in TRUE_CLASSES:
+        indexes = [index for index, label in enumerate(truth) if label == target]
+        conclusive = sum(predictions[index] is not None for index in indexes)
+        result[target] = {
+            "support": len(indexes),
+            "conclusive": conclusive,
+            "coverage": conclusive / len(indexes),
+            "abstention_rate": 1.0 - conclusive / len(indexes),
+        }
+    return result
+
+
+def _classification_metrics_for_classes(truth, predictions, classes):
+    total = len(truth)
+    conclusive = sum(prediction is not None for prediction in predictions)
+    correct = sum(left == right for left, right in zip(truth, predictions))
+    per_class = {}
+    recalls = []
+    f1s = []
+    for target in classes:
+        true_positive = sum(
+            left == target and right == target
+            for left, right in zip(truth, predictions)
+        )
+        actual = sum(left == target for left in truth)
+        predicted = sum(right == target for right in predictions)
+        precision = true_positive / predicted if predicted else 0.0
+        recall = true_positive / actual if actual else 0.0
+        f1 = (
+            2 * precision * recall / (precision + recall)
+            if precision + recall
+            else 0.0
+        )
+        per_class[target] = {"precision": precision, "recall": recall, "f1": f1}
+        recalls.append(recall)
+        f1s.append(f1)
+    return {
+        "sample_count": total,
+        "accuracy": correct / total if total else 0.0,
+        "balanced_accuracy": sum(recalls) / len(classes),
+        "macro_f1": sum(f1s) / len(classes),
+        "coverage": conclusive / total if total else 0.0,
+        "per_class": per_class,
+    }
+
+
+def _stage_metrics(rows, decisions, hierarchical_labels) -> dict[str, object]:
+    level1_truth = [
+        "real" if row["true_class"] == "real" else "artificial" for row in rows
+    ]
+    level1_predictions = []
+    for decision in decisions:
+        if decision.p_artificial is None:
+            level1_predictions.append(None)
+        elif decision.p_artificial <= 1.0 - decision.level1_threshold:
+            level1_predictions.append("real")
+        elif decision.p_artificial >= decision.level1_threshold:
+            level1_predictions.append("artificial")
+        else:
+            level1_predictions.append(None)
+
+    artificial_indexes = [
+        index for index, row in enumerate(rows) if row["true_class"] != "real"
+    ]
+    level2_truth = [rows[index]["true_class"] for index in artificial_indexes]
+    level2_end_to_end = [
+        hierarchical_labels[index]
+        if hierarchical_labels[index] in {"synthetic", "edited"}
+        else None
+        for index in artificial_indexes
+    ]
+    reached_level2 = [
+        index
+        for index in artificial_indexes
+        if decisions[index].p_synthetic_given_artificial is not None
+    ]
+    conditional_truth = [rows[index]["true_class"] for index in reached_level2]
+    conditional_predictions = [
+        hierarchical_labels[index]
+        if hierarchical_labels[index] in {"synthetic", "edited"}
+        else None
+        for index in reached_level2
+    ]
+    return {
+        "level1_real_vs_artificial": _classification_metrics_for_classes(
+            level1_truth,
+            level1_predictions,
+            ("real", "artificial"),
+        ),
+        "level2_synthetic_vs_edited_end_to_end": _classification_metrics_for_classes(
+            level2_truth,
+            level2_end_to_end,
+            ("synthetic", "edited"),
+        ),
+        "level2_synthetic_vs_edited_conditional_on_reaching_level2": (
+            _classification_metrics_for_classes(
+                conditional_truth,
+                conditional_predictions,
+                ("synthetic", "edited"),
+            )
+        ),
+    }
 
 
 def _validate_digest(value, name):
